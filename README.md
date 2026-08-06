@@ -10,6 +10,9 @@ and moves it into the OneDrive folder `_iPhone-BU`.
 | `Sources/iPhoneBackupApp.swift` | the whole app (SwiftUI + AppKit, single file) |
 | `Info.plist` | bundle metadata — `CFBundleExecutable` **must** stay `iPhoneBackup` |
 | `build.sh` | compiles, assembles the `.app`, ad-hoc signs it |
+| `Tools/render-icon.swift` | draws the icon with CoreGraphics |
+| `Tools/make-icon.sh` | renders + resizes + packs `Resources/AppIcon.icns` |
+| `Resources/` | `AppIcon.icns` and the 1024 px master PNG |
 | `build/` | build output (throwaway, safe to delete) |
 
 ## Build
@@ -20,6 +23,22 @@ and moves it into the OneDrive folder `_iPhone-BU`.
 ```
 
 Needs only the Command Line Tools (`xcode-select -p`), no full Xcode.
+
+**Quit the app before rebuilding** — `build.sh` starts with `rm -rf` on the bundle,
+and pulling that out from under a running archive job is asking for trouble.
+
+## Icon
+
+```sh
+./Tools/make-icon.sh    # only after editing Tools/render-icon.swift
+```
+
+`build.sh` consumes the committed `Resources/AppIcon.icns`, so a normal build does
+not re-render. If Finder still shows the old icon after a rebuild, refresh the cache:
+
+```sh
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f ~/Applications/"iPhone Backup.app"
+```
 
 ## Things that will bite you again
 
