@@ -2,3 +2,11 @@
 build/
 
 .DS_Store
+
+# Old iteration artifacts (AppleScript / Automator / Script Editor / Swift variants
+# from before the rewrite). Kept on disk for reference, deliberately not committed:
+# they are compiled .app bundles and binaries, not useful in history.
+# The two files negated below ARE tracked.
+reference/*
+!reference/README.md
+!reference/original-gemini-version.swift
