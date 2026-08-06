@@ -35,6 +35,13 @@ echo "==> Assembling bundle"
 cp Info.plist "$APP/Contents/Info.plist"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 
+# Icon: regenerate with ./Tools/make-icon.sh after editing Tools/render-icon.swift.
+if [[ -f Resources/AppIcon.icns ]]; then
+	cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+else
+	echo "    (warning: Resources/AppIcon.icns missing — building without an icon)"
+fi
+
 echo "==> Signing (ad-hoc)"
 codesign --force --deep --sign - --timestamp=none "$APP"
 codesign --verify --verbose=2 "$APP"
