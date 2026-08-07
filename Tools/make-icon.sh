@@ -10,10 +10,15 @@ PNG="Resources/icon-1024.png"
 ICONSET="build/AppIcon.iconset"
 ICNS="Resources/AppIcon.icns"
 
+# render-icon.swift takes [variant] [output]. The variant MUST be passed
+# explicitly: omitting it makes the renderer read the output path as a variant
+# name and exit 2, which silently leaves the previous .icns in place.
+VARIANT="${1:-triangle}"
+
 mkdir -p Resources build
 
-echo "==> Rendering $PNG"
-xcrun swift Tools/render-icon.swift "$PNG"
+echo "==> Rendering $PNG (variant: $VARIANT)"
+xcrun swift Tools/render-icon.swift "$VARIANT" "$PNG"
 
 echo "==> Building iconset"
 rm -rf "$ICONSET"

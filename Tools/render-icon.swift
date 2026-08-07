@@ -1,27 +1,117 @@
 // Renders the app icon at 1024x1024 as a PNG.
 //
-//   swift Tools/render-icon.swift Resources/icon-1024.png
+//   swift Tools/render-icon.swift [variant] [output.png]
+//
+//   variant: triangle (default) | arrow | inverted
 //
 // Drawn with CoreGraphics rather than exported from a design tool so the icon
-// lives in version control as code and stays crisp at every size. Motif:
-// an upload arrow rising into a cloud — local iPhone backup going to OneDrive.
+// lives in version control as code and stays crisp at every size.
+//
+// Cloud construction — the important part. Every lobe is a circle whose centre
+// sits at (x, bottom + radius), i.e. tangent to the bottom line from above. That
+// single constraint guarantees a flat underside with no dips, and lobes meeting
+// the base with matching horizontal tangents instead of visible seams. The
+// filler rect's top corners are placed *inside* the end lobes, so the union has
+// no notch anywhere. Lobe radii and positions are deliberately unequal to get
+// an asymmetric, iCloud-like silhouette rather than a mirrored blob.
 
 import Foundation
 import CoreGraphics
 import ImageIO
 import UniformTypeIdentifiers
 
-let side = 1024
-let outputPath = CommandLine.arguments.count > 1
-    ? CommandLine.arguments[1]
+// MARK: - Arguments
+
+let variant = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "triangle"
+let outputPath = CommandLine.arguments.count > 2
+    ? CommandLine.arguments[2]
     : "Resources/icon-1024.png"
 
+guard ["triangle", "arrow", "inverted"].contains(variant) else {
+    FileHandle.standardError.write(Data("unknown variant '\(variant)'\n".utf8))
+    exit(2)
+}
+
+// MARK: - Palette (flat, no gradients)
+
+let blue = CGColor(red: 0.11, green: 0.55, blue: 0.95, alpha: 1)
+let white = CGColor(red: 1, green: 1, blue: 1, alpha: 1)
+
+let plateColor = variant == "inverted" ? white : blue
+let cloudColor = variant == "inverted" ? blue : white
+let glyphColor = plateColor          // same flat colour as the plate reads as a knockout
+
+// MARK: - Geometry, in design space
+
+let bottom: CGFloat = 322            // the flat underside
+let flatL: CGFloat = 300             // flat bottom runs from here…
+let flatR: CGFloat = 790             // …to here; lobes curve up beyond both ends
+
+/// A lobe tangent to `bottom`: give it a centre x and a radius.
+func lobe(_ cx: CGFloat, _ r: CGFloat) -> CGRect {
+    CGRect(x: cx - r, y: bottom, width: r * 2, height: r * 2)
+}
+
+// Deliberately lopsided: one tall dome sitting left of centre, then a long
+// shoulder cascading down and out to the right, and only a small stub on the
+// left. Reading the crest heights left→right gives 522 · 752 · 622 · 486 — a
+// staircase, not a mirror, which is what keeps it from looking like a blob.
+let cloud = CGMutablePath()
+cloud.addEllipse(in: lobe(flatL, 100))       // left end, small stub
+cloud.addEllipse(in: lobe(455, 215))         // the dome, left of centre and tallest
+cloud.addEllipse(in: lobe(640, 150))         // right shoulder, wide and lower
+cloud.addEllipse(in: lobe(flatR, 82))        // right end, smallest — the long taper
+
+// The rect's left and right edges sit exactly on the two END lobe centres, i.e.
+// on their tangent points. That is what keeps the underside corners inside the
+// circles; move an edge off a centre and a notch appears at the base. Its height
+// stays below 2×the smaller end radius (164) so it never breaks the silhouette.
+cloud.addRect(CGRect(x: flatL, y: bottom, width: flatR - flatL, height: 130))
+
+// MARK: - Glyph, in the same design space
+
+/// Triangle with rounded corners, drawn via tangent arcs.
+func roundedTriangle(apex: CGPoint, left: CGPoint, right: CGPoint,
+                     radius: CGFloat) -> CGPath {
+    let p = CGMutablePath()
+    p.move(to: CGPoint(x: (left.x + apex.x) / 2, y: (left.y + apex.y) / 2))
+    p.addArc(tangent1End: apex, tangent2End: right, radius: radius)
+    p.addArc(tangent1End: right, tangent2End: left, radius: radius)
+    p.addArc(tangent1End: left, tangent2End: apex, radius: radius)
+    p.closeSubpath()
+    return p
+}
+
+let glyph = CGMutablePath()
+
+// The glyph centres on the DOME (x≈490), not on the cloud's bounding box (x=536).
+// With a lopsided silhouette those two differ, and the bounding-box centre reads
+// as off to the right because the eye anchors on the tall lobe, not the taper.
+switch variant {
+case "arrow":
+    glyph.addPath(roundedTriangle(
+        apex: CGPoint(x: 490, y: 665),
+        left: CGPoint(x: 375, y: 495),
+        right: CGPoint(x: 605, y: 495),
+        radius: 26))
+    glyph.addPath(CGPath(
+        roundedRect: CGRect(x: 448, y: 380, width: 84, height: 125),
+        cornerWidth: 42, cornerHeight: 42, transform: nil))
+
+default:   // triangle, inverted
+    glyph.addPath(roundedTriangle(
+        apex: CGPoint(x: 490, y: 650),
+        left: CGPoint(x: 375, y: 450),
+        right: CGPoint(x: 605, y: 450),
+        radius: 30))
+}
+
+// MARK: - Canvas
+
+let side = 1024
 guard let ctx = CGContext(
-    data: nil,
-    width: side,
-    height: side,
-    bitsPerComponent: 8,
-    bytesPerRow: 0,
+    data: nil, width: side, height: side,
+    bitsPerComponent: 8, bytesPerRow: 0,
     space: CGColorSpaceCreateDeviceRGB(),
     bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
 ) else {
@@ -29,91 +119,46 @@ guard let ctx = CGContext(
     exit(1)
 }
 
-// MARK: - Rounded-square plate
-//
-// macOS icons do not fill their canvas: the plate is inset so the grid stays
-// consistent across apps. ~8% inset with a ~22% corner radius matches the
-// current Big Sur onwards template closely enough.
-
+// Rounded plate. macOS icons do not fill their canvas — the plate is inset so
+// the grid stays consistent across apps.
 let inset: CGFloat = 82
 let plate = CGRect(x: inset, y: inset,
                    width: CGFloat(side) - inset * 2,
                    height: CGFloat(side) - inset * 2)
-let corner = plate.width * 0.2237
+let cornerR = plate.width * 0.2237
 
-let platePath = CGPath(roundedRect: plate,
-                       cornerWidth: corner,
-                       cornerHeight: corner,
-                       transform: nil)
-
-ctx.saveGState()
-ctx.addPath(platePath)
-ctx.clip()
-
-let gradient = CGGradient(
-    colorsSpace: CGColorSpaceCreateDeviceRGB(),
-    colors: [
-        CGColor(red: 0.33, green: 0.66, blue: 1.00, alpha: 1.0),   // top
-        CGColor(red: 0.05, green: 0.31, blue: 0.86, alpha: 1.0),   // bottom
-    ] as CFArray,
-    locations: [0.0, 1.0]
-)!
-ctx.drawLinearGradient(
-    gradient,
-    start: CGPoint(x: 0, y: plate.maxY),
-    end: CGPoint(x: 0, y: plate.minY),
-    options: []
-)
-ctx.restoreGState()
-
-// MARK: - Glyphs
-//
-// Cloud on top, upload arrow below it, both solid white. Kept as two separate
-// silhouettes with a clear gap so the shape still reads at 16x16, where an
-// arrow drawn *inside* the cloud would smear into one blob.
-
-let midX: CGFloat = 512
-
-// The lobes are positioned so the union is smooth without any trimming:
-// both side lobes sit tangent to the base's bottom edge and are centred exactly
-// on its top edge, so each lobe's widest point meets the base flush. Getting
-// this wrong is what produces notched shoulders or a boxy underside.
-let baseRect = CGRect(x: 290, y: 502, width: 444, height: 110)
-let lobeR: CGFloat = 110
-let lobeY = baseRect.maxY                       // 612 — lobe centres on the base's top edge
-
-let cloud = CGMutablePath()
-cloud.addPath(CGPath(roundedRect: baseRect, cornerWidth: 40, cornerHeight: 40, transform: nil))
-cloud.addEllipse(in: CGRect(x: baseRect.minX, y: lobeY - lobeR,
-                            width: lobeR * 2, height: lobeR * 2))
-cloud.addEllipse(in: CGRect(x: baseRect.maxX - lobeR * 2, y: lobeY - lobeR,
-                            width: lobeR * 2, height: lobeR * 2))
-cloud.addEllipse(in: CGRect(x: midX - 145, y: 667 - 145, width: 290, height: 290))
-
-let arrow = CGMutablePath()
-let tipY: CGFloat = 462
-let headBaseY: CGFloat = 334
-let headHalf: CGFloat = 132
-let shaftHalf: CGFloat = 45
-let shaftBottomY: CGFloat = 188
-
-arrow.move(to: CGPoint(x: midX, y: tipY))
-arrow.addLine(to: CGPoint(x: midX + headHalf, y: headBaseY))
-arrow.addLine(to: CGPoint(x: midX + shaftHalf, y: headBaseY))
-arrow.addLine(to: CGPoint(x: midX + shaftHalf, y: shaftBottomY))
-arrow.addLine(to: CGPoint(x: midX - shaftHalf, y: shaftBottomY))
-arrow.addLine(to: CGPoint(x: midX - shaftHalf, y: headBaseY))
-arrow.addLine(to: CGPoint(x: midX - headHalf, y: headBaseY))
-arrow.closeSubpath()
-
-// Soft shadow so the white lifts off the blue instead of looking pasted on.
-ctx.setShadow(offset: CGSize(width: 0, height: -10), blur: 26,
-              color: CGColor(red: 0, green: 0.12, blue: 0.38, alpha: 0.35))
-ctx.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 1))
-ctx.addPath(cloud)
-ctx.fillPath(using: .winding)   // overlapping circles union instead of cancelling
-ctx.addPath(arrow)
+ctx.setFillColor(plateColor)
+ctx.addPath(CGPath(roundedRect: plate, cornerWidth: cornerR, cornerHeight: cornerR,
+                   transform: nil))
 ctx.fillPath()
+
+// Scale the cloud to fill the plate with gentle padding. The glyph gets the
+// identical transform so it stays locked to the cloud.
+let padding: CGFloat = 80
+let target = plate.insetBy(dx: padding, dy: padding)
+let box = cloud.boundingBoxOfPath
+let scale = min(target.width / box.width, target.height / box.height)
+
+var fit = CGAffineTransform.identity
+    .translatedBy(x: target.midX - box.midX * scale, y: target.midY - box.midY * scale)
+    .scaledBy(x: scale, y: scale)
+
+guard let cloudFitted = cloud.copy(using: &fit),
+      let glyphFitted = glyph.copy(using: &fit) else {
+    FileHandle.standardError.write(Data("could not transform paths\n".utf8))
+    exit(1)
+}
+
+// .winding unions the overlapping lobes; .evenOdd would cancel them into holes.
+ctx.setFillColor(cloudColor)
+ctx.addPath(cloudFitted)
+ctx.fillPath(using: .winding)
+
+// On a flat background, filling the glyph in the plate colour is pixel-identical
+// to knocking it out — and far simpler than a transparency layer.
+ctx.setFillColor(glyphColor)
+ctx.addPath(glyphFitted)
+ctx.fillPath(using: .winding)
 
 // MARK: - Write PNG
 
@@ -138,4 +183,4 @@ guard CGImageDestinationFinalize(dest) else {
     exit(1)
 }
 
-print("wrote \(outputPath) (\(side)x\(side))")
+print("wrote \(outputPath) — variant '\(variant)', \(side)x\(side)")
