@@ -7,6 +7,9 @@ class BackupManager: ObservableObject {
     @Published var percentage: Double = 0.0
     @Published var isRunning: Bool = false
     
+    // Redacted for publication: the original hardcoded an absolute home path and
+    // a real OneDrive tenant name here. That it hardcoded them at all is the point
+    // worth preserving — see this folder's README.
     let backupDir = "/Users/USERNAME/Library/Application Support/MobileSync/Backup"
     let baseOneDriveDir = "/Users/USERNAME/OneDrive - TENANT NAME"
     

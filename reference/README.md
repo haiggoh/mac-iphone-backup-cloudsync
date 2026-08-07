@@ -8,11 +8,17 @@ this folder will be empty.
 
 Collected on 2026-08-06 from `~/Desktop/bu/`, `~/Apps/`, and `~/Desktop/`.
 
+**Two lines in `original-gemini-version.swift` are redacted** (`USERNAME`,
+`TENANT NAME`): the original hardcoded a real home path and a real OneDrive
+tenant. Nothing else about that file was altered — and that it hardcoded them in
+the first place is exactly the flaw the rewrite set out to remove, so the shape
+of the mistake is still visible.
+
 ## What's here
 
 | File | What it was |
 |---|---|
-| `original-gemini-version.swift` | the SwiftUI version — **tracked in git** (see commit `e123089`) |
+| `original-gemini-version.swift` | the SwiftUI version — **tracked in git**, and the only iteration that is |
 | `iPhone Backup Engine.scpt`, `… Kopie.scpt` | Script Editor AppleScript iterations |
 | `iPhone Backup Pro.scpt`, `iPhone Backup Ondrive T.scpt` | later AppleScript iterations |
 | `iPhone Backup Engine.app`, `… Kopie.app`, `… Kopie 2.app` | AppleScript apps exported from Script Editor |
