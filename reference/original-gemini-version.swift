@@ -10,6 +10,11 @@ class BackupManager: ObservableObject {
     // Redacted for publication: the original hardcoded an absolute home path and
     // a real OneDrive tenant name here. That it hardcoded them at all is the point
     // worth preserving — see this folder's README.
+    //
+    // These are placeholders, NOT a suggested fix. "$HOME/..." would not work in a
+    // Swift literal either — Swift performs no shell expansion, so the dollar sign
+    // would end up in the path. The rewrite resolves the home directory at runtime
+    // instead, with NSHomeDirectory(); see Sources/iPhoneBackupApp.swift.
     let backupDir = "/Users/USERNAME/Library/Application Support/MobileSync/Backup"
     let baseOneDriveDir = "/Users/USERNAME/OneDrive - TENANT NAME"
     
