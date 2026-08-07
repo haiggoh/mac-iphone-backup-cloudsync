@@ -79,6 +79,16 @@ echo "start a backup now — transitions appear below (Ctrl-C to stop)"
 while true; do
 	now=$(date +%H:%M:%S)
 
+	# If the state directory vanished, every directory looks new again and the
+	# output degenerates into APPEARED on every pass. That really happens: when the
+	# parent shell is killed, the EXIT trap can remove STATE_DIR while this loop is
+	# still running — observed producing 874 spurious APPEARED lines in one log.
+	# Stopping is the honest response; a silently useless observer is worse than none.
+	if [ ! -d "$STATE_DIR" ]; then
+		echo "[$now] FATAL: state directory disappeared, stopping rather than reporting noise"
+		exit 1
+	fi
+
 	# Reglobbed every pass so a directory appearing mid-run is picked up.
 	for dir in "$BACKUP_ROOT"/*/; do
 		[ -d "$dir" ] || continue

@@ -65,6 +65,12 @@ public enum IncompleteReason: Equatable, Error {
     case statusPlistUnreadable
     case metadataStillChanging(fields: [String])
     case noCompletionDate
+    /// A watched file exists but has zero length. Never valid, and observed
+    /// happening on real hardware minutes after the backup claimed to be finished.
+    case watchedFileEmpty(name: String)
+    /// Something was modified too recently to trust. `newestAge` is how long ago
+    /// the most recent write was, `required` the minimum age demanded.
+    case stillSettling(newestAge: TimeInterval, required: TimeInterval)
 }
 
 public enum ConfigurationProblem: Equatable, Error {

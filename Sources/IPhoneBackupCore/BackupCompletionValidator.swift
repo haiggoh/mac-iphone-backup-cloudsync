@@ -156,7 +156,75 @@ public struct BackupCompletionValidator {
             return .failure(.manifestUnreadable)
         }
 
+        // A zero-length watched file is never a valid backup, and this is not
+        // hypothetical: on 2026-08-07 Info.plist was observed at 0 bytes for ~3
+        // seconds, 3m53s after the backup reported itself finished. Archiving in
+        // that window produces a backup that cannot be restored, while every other
+        // signal says success.
+        for name in Self.watchedFiles {
+            let url = directory.appendingPathComponent(name)
+            guard let attributes = try? fileManager.attributesOfItem(atPath: url.path),
+                  let size = (attributes[.size] as? NSNumber)?.int64Value
+            else { continue }   // absent is handled by the checks above
+            if size == 0 {
+                return .failure(.watchedFileEmpty(name: name))
+            }
+        }
+
         return .success(status)
+    }
+
+    // MARK: Settling
+
+    /// The most recent modification time across the watched files, or nil if none
+    /// could be read.
+    public func newestModification(directory: URL) -> Date? {
+        fingerprint(directory: directory).stamps.values
+            .compactMap { $0?.modified }
+            .max()
+    }
+
+    /// Requires that nothing has been written *recently*.
+    ///
+    /// This complements the two-sample quiet period rather than replacing it, and
+    /// it is the gate that actually catches Apple's late rewrite. Two samples taken
+    /// during a lull both look identical, so they cannot distinguish "finished" from
+    /// "between two writes" — but an mtime only minutes old proves the latter.
+    public func confirmSettled(
+        directory: URL,
+        minimumAge: TimeInterval,
+        now: Date = Date()
+    ) -> Result<Void, IncompleteReason> {
+        guard let newest = newestModification(directory: directory) else {
+            return .failure(.statusPlistUnreadable)
+        }
+        let age = now.timeIntervalSince(newest)
+        guard age >= minimumAge else {
+            return .failure(.stillSettling(newestAge: age, required: minimumAge))
+        }
+        return .success(())
+    }
+
+    /// The single gate the archiver should use: complete, settled, and stable.
+    ///
+    /// Ordered cheapest-first so a backup that is obviously not ready costs three
+    /// stat calls rather than a minute of waiting.
+    public func confirmReadyToArchive(
+        directory: URL,
+        minimumSettleAge: TimeInterval,
+        quietPeriod: TimeInterval,
+        clock: QuietPeriodClock = SystemClock(),
+        now: @escaping () -> Date = Date.init
+    ) -> Result<StatusInfo, IncompleteReason> {
+        if case .failure(let reason) = validateCompletion(directory: directory) {
+            return .failure(reason)
+        }
+        if case .failure(let reason) = confirmSettled(
+            directory: directory, minimumAge: minimumSettleAge, now: now()
+        ) {
+            return .failure(reason)
+        }
+        return confirmStable(directory: directory, quietPeriod: quietPeriod, clock: clock)
     }
 
     // MARK: Stability

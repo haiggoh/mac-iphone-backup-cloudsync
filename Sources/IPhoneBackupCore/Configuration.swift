@@ -6,11 +6,22 @@ import Foundation
 public struct Configuration {
 
     public static let defaultDestinationSubdirectory = "_iPhone-BU"
-    /// How long metadata must sit unchanged before a backup counts as settled.
-    /// `Status.plist` flips to `finished` while `Info.plist` is still being
-    /// written — measured ~2m40s apart on the development machine — so this is
-    /// the check that stops us archiving a moving target.
+    /// How long metadata must sit unchanged, sampled twice, before archiving.
     public static let defaultQuietPeriod: TimeInterval = 60
+
+    /// The newest write to any watched file must be at least this old.
+    ///
+    /// **This number is measured, not chosen.** Observing a real backup complete
+    /// over Wi-Fi on 2026-08-07: `SnapshotState` reached `finished` at 11:35:06,
+    /// and then `Info.plist` was truncated to **0 bytes at 11:38:59** and rewritten
+    /// at 11:39:02 — **3m53s after the backup declared itself finished.**
+    ///
+    /// A 60-second quiet period does not survive that: sampling at 11:35:06 and
+    /// again at 11:36:06 sees nothing change and archives an hour-shaped illusion
+    /// of a finished backup, ~3 minutes before the file is destroyed and rebuilt.
+    /// So readiness also requires that nothing has been touched *recently*, with a
+    /// margin over the longest lag actually observed.
+    public static let defaultMinimumSettleAge: TimeInterval = 360
     /// Archives to keep before the app starts warning. It never deletes.
     public static let defaultArchivesToKeep = 3
     public static let defaultPollInterval: TimeInterval = 300
@@ -26,6 +37,7 @@ public struct Configuration {
     public let applicationSupportDirectory: URL
     public let destinationSubdirectory: String
     public let quietPeriod: TimeInterval
+    public let minimumSettleAge: TimeInterval
     public let archivesToKeep: Int
     /// Set by `--destination-root`, or by the user picking a folder. Bypasses
     /// discovery entirely.
@@ -38,9 +50,11 @@ public struct Configuration {
         applicationSupportDirectory: URL,
         destinationSubdirectory: String = Configuration.defaultDestinationSubdirectory,
         quietPeriod: TimeInterval = Configuration.defaultQuietPeriod,
+        minimumSettleAge: TimeInterval = Configuration.defaultMinimumSettleAge,
         archivesToKeep: Int = Configuration.defaultArchivesToKeep,
         destinationRootOverride: String? = nil
     ) {
+        self.minimumSettleAge = minimumSettleAge
         self.bundleIdentifier = bundleIdentifier
         self.backupRoot = backupRoot
         self.stagingRoot = stagingRoot
