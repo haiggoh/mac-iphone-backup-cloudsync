@@ -27,14 +27,34 @@ public struct Configuration {
     /// couple of minutes of post-processing rather than a fraction of the transfer.
     /// A slower link should therefore not push it far past the observed maximum.
     ///
-    /// 360 s leaves 125 s (53%) of headroom over the worst case seen. It is exposed
-    /// in settings so it can be raised if a backup is ever missed.
+    /// **900 s is deliberately far more than the measurements require — roughly 3.8x
+    /// the worst case seen — because the cost of waiting is nil and the cost of being
+    /// wrong is a corrupt 50 GB archive.** Two observations are two observations:
+    /// neither sampled a heavily loaded SSD, a much larger backup, a thermally
+    /// throttled machine, or a slower link than Wi-Fi. Sizing the gate to the
+    /// observed maximum would assume the sample is the worst case, which it plainly
+    /// is not.
+    ///
+    /// What waiting actually costs: the agent polls every 5 minutes regardless, so a
+    /// larger gate means a backup is archived one or two polls later — roughly 15 to
+    /// 20 minutes after it finishes instead of 6 to 10. For an archive taken at most
+    /// daily, that is not a cost at all.
+    ///
+    /// The one real risk is the opposite end: if backups were taken more often than
+    /// the settle window, the state would keep flipping away from `finished` and
+    /// nothing would ever be archived. Every deferral is logged with its reason
+    /// precisely so that is diagnosable rather than a silent stall, and the value is
+    /// a setting rather than a constant.
+    ///
+    /// Note the two gates cover different failure modes and both are needed: the
+    /// quiet period catches a file being written *while we watch*, however long that
+    /// lasts, and this catches the gap *between* two writes.
     ///
     /// Corroborated from outside the filesystem: during the second run the user
     /// reported the Finder progress bar still animating after reaching 100%, and it
     /// stopped at the moment `Info.plist` was rewritten. The visible "still working"
     /// signal and the file being watched are the same event.
-    public static let defaultMinimumSettleAge: TimeInterval = 360
+    public static let defaultMinimumSettleAge: TimeInterval = 900
     /// Archives to keep before the app starts warning. It never deletes.
     public static let defaultArchivesToKeep = 3
     public static let defaultPollInterval: TimeInterval = 300
