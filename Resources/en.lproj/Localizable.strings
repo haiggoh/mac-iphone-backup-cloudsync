@@ -1,0 +1,71 @@
+/* Window */
+"window.title" = "iPhone Backup";
+
+/* Headline */
+"headline.title" = "Archive iPhone Backup";
+
+/* Status Messages */
+"status.searching" = "Searching for iPhone backup…";
+"status.noBackupFolder" = "No backup folder found";
+"status.folderMissing" = "%@ does not exist.";
+"status.noBackupPresent" = "No iPhone backup present";
+"status.emptyOrNoAccess" = "Folder is empty, or the app lacks “Full Disk Access” (System Settings › Privacy & Security).";
+"status.determiningSize" = "Determining size…";
+"status.readyToArchive" = "%@ — ready to archive.";
+"status.creatingArchive" = "Creating archive…";
+"status.movingToCloud" = "Moving archive to cloud folder…";
+"status.cancelling" = "Cancelling…";
+"status.cancelled" = "Cancelled — incomplete archive deleted.";
+"status.finished" = "Done — %@ in %@. Uploading to cloud folder now.";
+"status.progressOf" = "%@ of approx. %@";
+"status.remaining" = "approx. %@ remaining";
+
+/* Errors */
+"error.noCloudFolder" = "Cloud folder not found.";
+"error.targetFolderFailed" = "Could not create target folder: %@";
+"error.insufficientSpace" = "Insufficient free space: %@ free, approx. %@ required.";
+"error.archiveToolFailed" = "ditto failed with code %lld.";
+"error.archiveTooSmall" = "Archive is implausibly small (%lld bytes) — operation discarded.";
+"error.moveFailed" = "Move failed: %@";
+"error.stagedArchiveKept" = "The finished archive remains at %@";
+
+/* Buttons */
+"button.start" = "Start Backup";
+"button.running" = "Running…";
+"button.cancel" = "Cancel";
+"button.revealInFinder" = "Reveal in Finder";
+
+/* Duplicate Alert */
+"duplicate.title" = "Backup Already Exists";
+"duplicate.message" = "An archive for the iPhone backup from %@ already exists in the target folder (%@). Do you want to replace it?";
+"duplicate.replace" = "Replace";
+"duplicate.cancel" = "Cancel";
+
+/* Notifications */
+"notification.doneTitle" = "Backup Complete";
+"notification.doneBody" = "%@ (%@) is in the target folder.";
+
+/* Reasons a backup is not ready, and configuration problems */
+"incomplete.notFinished" = "The backup is not finished yet (state: %@).";
+"incomplete.manifestMissing" = "The backup has no usable Manifest.db.";
+"incomplete.manifestUnreadable" = "The backup's Manifest.db cannot be read.";
+"incomplete.statusUnreadable" = "The backup's Status.plist cannot be read.";
+"incomplete.stillChanging" = "The backup is still being written (%@ changed).";
+"incomplete.noDate" = "No reliable completion date could be established.";
+"incomplete.fileEmpty" = "%@ is empty — the backup is still being written.";
+"incomplete.settling" = "Waiting for the backup to settle, approx. %@ remaining.";
+"config.multipleRoots" = "Several cloud folders were found (%@). Please choose one.";
+"config.noRoot" = "No cloud folder was found.";
+"config.rootMissing" = "The selected cloud folder no longer exists: %@";
+"error.stateWriteFailed" = "The archive was created, but recording it failed: %@";
+"error.archiveExists" = "An archive already exists at %@ and was not replaced.";
+"deferred.battery" = "Waiting for power — the battery would not last the approx. %@ needed.";
+"duration.hoursMinutes" = "%ld h %ld min";
+"duration.minutesSeconds" = "%ld min %ld s";
+"duration.seconds" = "%ld s";
+
+/* Quitting while an archive is running */
+"quit.title" = "An archive is still being created";
+"quit.message" = "Quitting now stops it and discards the partial archive. Any existing archive in the cloud folder is untouched.";
+"quit.stopAndQuit" = "Stop and quit";
+"quit.keepRunning" = "Keep archiving";

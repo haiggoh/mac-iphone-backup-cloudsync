@@ -11,16 +11,29 @@ public struct Configuration {
 
     /// The newest write to any watched file must be at least this old.
     ///
-    /// **This number is measured, not chosen.** Observing a real backup complete
-    /// over Wi-Fi on 2026-08-07: `SnapshotState` reached `finished` at 11:35:06,
-    /// and then `Info.plist` was truncated to **0 bytes at 11:38:59** and rewritten
-    /// at 11:39:02 — **3m53s after the backup declared itself finished.**
+    /// **This number is measured, not chosen.** Two real backups were observed end
+    /// to end, timing the gap between `SnapshotState` becoming `finished` and the
+    /// last write to `Info.plist`:
     ///
-    /// A 60-second quiet period does not survive that: sampling at 11:35:06 and
-    /// again at 11:36:06 sees nothing change and archives an hour-shaped illusion
-    /// of a finished backup, ~3 minutes before the file is destroyed and rebuilt.
-    /// So readiness also requires that nothing has been touched *recently*, with a
-    /// margin over the longest lag actually observed.
+    ///     transport            backup took    finished -> Info.plist rewritten
+    ///     Wi-Fi   2026-08-07   ~20 min        235 s  (3m55s)
+    ///     USB/TB4 2026-08-08   ~5 min         150 s  (2m30s)
+    ///
+    /// Two things follow. A 60-second quiet period would have archived mid-write in
+    /// **both** runs — two samples a minute apart both land in the lull before the
+    /// rewrite, so they cannot tell "finished" from "between two writes". And the lag
+    /// does **not** scale with transfer speed: the second backup was roughly 4x
+    /// faster overall yet its tail shrank only ~1.6x, so this is a largely fixed
+    /// couple of minutes of post-processing rather than a fraction of the transfer.
+    /// A slower link should therefore not push it far past the observed maximum.
+    ///
+    /// 360 s leaves 125 s (53%) of headroom over the worst case seen. It is exposed
+    /// in settings so it can be raised if a backup is ever missed.
+    ///
+    /// Corroborated from outside the filesystem: during the second run the user
+    /// reported the Finder progress bar still animating after reaching 100%, and it
+    /// stopped at the moment `Info.plist` was rewritten. The visible "still working"
+    /// signal and the file being watched are the same event.
     public static let defaultMinimumSettleAge: TimeInterval = 360
     /// Archives to keep before the app starts warning. It never deletes.
     public static let defaultArchivesToKeep = 3

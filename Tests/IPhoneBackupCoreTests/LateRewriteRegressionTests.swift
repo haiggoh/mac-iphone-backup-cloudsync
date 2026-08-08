@@ -136,6 +136,50 @@ final class LateRewriteRegressionTests: TemporaryDirectoryTestCase {
         }
     }
 
+    /// Both real observations, as data. If the gate is ever lowered below either
+    /// measured lag, this fails and says which run it would have broken.
+    ///
+    ///     transport            backup took    finished -> Info.plist rewritten
+    ///     Wi-Fi   2026-08-07   ~20 min        235 s
+    ///     USB/TB4 2026-08-08   ~5 min         150 s
+    ///
+    /// The lag does not scale with transfer speed — 4x faster overall, only ~1.6x
+    /// shorter tail — so it behaves like fixed post-processing, which is why a single
+    /// fixed threshold is a reasonable shape for this gate at all.
+    func testGateExceedsEveryObservedRewriteLag() throws {
+        let observations: [(transport: String, lagSeconds: TimeInterval)] = [
+            ("Wi-Fi 2026-08-07", 235),
+            ("USB/TB4 2026-08-08", 150),
+        ]
+
+        for observation in observations {
+            let dir = try makeBackup(named: "lag-\(observation.lagSeconds)")
+            let finishedAt = Date(timeIntervalSince1970: 1_786_179_846)
+            for name in BackupCompletionValidator.watchedFiles {
+                try FileManager.default.setAttributes(
+                    [.modificationDate: finishedAt],
+                    ofItemAtPath: dir.appendingPathComponent(name).path)
+            }
+
+            // At the moment Apple actually rewrote Info.plist, the gate must still
+            // be refusing — otherwise the archive would capture a file mid-write.
+            let atRewrite = finishedAt.addingTimeInterval(observation.lagSeconds)
+            let result = validator.confirmReadyToArchive(
+                directory: dir,
+                minimumSettleAge: Configuration.defaultMinimumSettleAge,
+                quietPeriod: 60,
+                clock: ImmediateClock(),
+                now: { atRewrite }
+            )
+            guard case .failure(.stillSettling) = result else {
+                return XCTFail(
+                    "gate of \(Configuration.defaultMinimumSettleAge)s would have archived "
+                    + "at the exact moment of the \(observation.transport) rewrite "
+                    + "(\(observation.lagSeconds)s after 'finished')")
+            }
+        }
+    }
+
     /// And once the real lag has elapsed, it does proceed — the gate must not be
     /// so strict that nothing is ever archived.
     func testArchivesOnceTheObservedLagHasComfortablyPassed() throws {

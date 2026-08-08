@@ -1,0 +1,71 @@
+/* Window */
+"window.title" = "iPhone Backup";
+
+/* Headline */
+"headline.title" = "iPhone-Backup archivieren";
+
+/* Status Messages */
+"status.searching" = "Suche iPhone-Backup …";
+"status.noBackupFolder" = "Kein Backup-Ordner gefunden";
+"status.folderMissing" = "%@ existiert nicht.";
+"status.noBackupPresent" = "Kein iPhone-Backup vorhanden";
+"status.emptyOrNoAccess" = "Ordner ist leer, oder der App fehlt „Festplattenvollzugriff“ (Systemeinstellungen › Datenschutz & Sicherheit).";
+"status.determiningSize" = "Ermittle Größe …";
+"status.readyToArchive" = "%@ — bereit zum Archivieren.";
+"status.creatingArchive" = "Archiv wird erstellt …";
+"status.movingToCloud" = "Verschiebe Archiv nach Cloud-Ordner …";
+"status.cancelling" = "Wird abgebrochen …";
+"status.cancelled" = "Abgebrochen — unvollständiges Archiv wurde gelöscht.";
+"status.finished" = "Fertig — %@ in %@. Der Cloud-Ordner synchronisiert jetzt.";
+"status.progressOf" = "%@ von ca. %@";
+"status.remaining" = "noch ca. %@";
+
+/* Errors */
+"error.noCloudFolder" = "Cloud-Ordner nicht gefunden.";
+"error.targetFolderFailed" = "Zielordner konnte nicht erstellt werden: %@";
+"error.insufficientSpace" = "Zu wenig freier Speicher: %@ frei, benötigt werden ca. %@.";
+"error.archiveToolFailed" = "ditto ist mit Code %lld fehlgeschlagen.";
+"error.archiveTooSmall" = "Archiv ist unplausibel klein (%lld Bytes) — Vorgang verworfen.";
+"error.moveFailed" = "Verschieben fehlgeschlagen: %@";
+"error.stagedArchiveKept" = "Das fertige Archiv liegt noch unter %@";
+
+/* Buttons */
+"button.start" = "Sicherung starten";
+"button.running" = "Läuft …";
+"button.cancel" = "Abbrechen";
+"button.revealInFinder" = "Im Finder zeigen";
+
+/* Duplicate Alert */
+"duplicate.title" = "Backup existiert bereits";
+"duplicate.message" = "Für das iPhone-Backup vom %@ liegt schon ein Archiv im Zielordner (%@). Möchtest du es ersetzen?";
+"duplicate.replace" = "Ersetzen";
+"duplicate.cancel" = "Abbrechen";
+
+/* Notifications */
+"notification.doneTitle" = "Backup abgeschlossen";
+"notification.doneBody" = "%@ (%@) liegt im Zielordner.";
+
+/* Reasons a backup is not ready, and configuration problems */
+"incomplete.notFinished" = "Das Backup ist noch nicht abgeschlossen (Status: %@).";
+"incomplete.manifestMissing" = "Das Backup enthält keine verwendbare Manifest.db.";
+"incomplete.manifestUnreadable" = "Die Manifest.db des Backups kann nicht gelesen werden.";
+"incomplete.statusUnreadable" = "Die Status.plist des Backups kann nicht gelesen werden.";
+"incomplete.stillChanging" = "Das Backup wird noch geschrieben (%@ geändert).";
+"incomplete.noDate" = "Es konnte kein zuverlässiges Abschlussdatum ermittelt werden.";
+"incomplete.fileEmpty" = "%@ ist leer – das Backup wird noch geschrieben.";
+"incomplete.settling" = "Warten, bis das Backup stabilisiert ist, ca. %@ verbleibend.";
+"config.multipleRoots" = "Es wurden mehrere Cloud-Ordner gefunden (%@). Bitte einen auswählen.";
+"config.noRoot" = "Es wurde kein Cloud-Ordner gefunden.";
+"config.rootMissing" = "Der ausgewählte Cloud-Ordner existiert nicht mehr: %@";
+"error.stateWriteFailed" = "Das Archiv wurde erstellt, die Speicherung ist jedoch fehlgeschlagen: %@";
+"error.archiveExists" = "Unter %@ existiert bereits ein Archiv und wurde nicht ersetzt.";
+"deferred.battery" = "Warten auf Stromversorgung – der Akku würde für die ca. %@ nicht ausreichen.";
+"duration.hoursMinutes" = "%ld Std. %ld Min.";
+"duration.minutesSeconds" = "%ld Min. %ld Sek.";
+"duration.seconds" = "%ld Sek.";
+
+/* Beenden während ein Archiv erstellt wird */
+"quit.title" = "Ein Archiv wird noch erstellt";
+"quit.message" = "Beim Beenden wird der Vorgang gestoppt und das unvollständige Archiv verworfen. Ein bereits vorhandenes Archiv im Cloud-Ordner bleibt unverändert.";
+"quit.stopAndQuit" = "Stoppen und beenden";
+"quit.keepRunning" = "Weiter archivieren";

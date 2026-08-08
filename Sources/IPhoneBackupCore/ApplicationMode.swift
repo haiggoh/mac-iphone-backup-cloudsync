@@ -32,6 +32,9 @@ public enum AutomaticRunResult: Equatable {
     case nothingToDo
     case alreadyRunning
     case incompleteBackup(IncompleteReason)
+    /// Everything is ready but conditions say wait — currently only insufficient
+    /// battery. A success, like `nothingToDo`: the next poll will pick it up.
+    case deferred(DeferralReason)
     case configurationRequired(ConfigurationProblem)
     case failed(RunFailure)
 
@@ -44,8 +47,10 @@ public enum AutomaticRunResult: Equatable {
         switch self {
         case .archived, .nothingToDo, .alreadyRunning:
             return 0
-        case .incompleteBackup:
-            // Not an error either — the backup simply is not ready yet.
+        case .incompleteBackup, .deferred:
+            // Not errors either — the backup is not ready yet, or conditions say
+            // wait. Reporting these as failures would train anyone reading the logs
+            // to ignore the real ones.
             return 0
         case .configurationRequired, .failed:
             return 1
@@ -71,6 +76,11 @@ public enum IncompleteReason: Equatable, Error {
     /// Something was modified too recently to trust. `newestAge` is how long ago
     /// the most recent write was, `required` the minimum age demanded.
     case stillSettling(newestAge: TimeInterval, required: TimeInterval)
+}
+
+public enum DeferralReason: Equatable, Error {
+    /// On battery, and the estimated job outlasts the remaining charge.
+    case insufficientBattery(secondsRemaining: TimeInterval?, secondsNeeded: TimeInterval)
 }
 
 public enum ConfigurationProblem: Equatable, Error {
