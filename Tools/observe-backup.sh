@@ -25,7 +25,15 @@ LOG="$HOME/.claude/logs/iphone-backup-observation-$(date +%Y%m%d-%H%M%S).log"
 STATE_DIR=$(mktemp -d "${TMPDIR:-/tmp}/backup-observe.XXXXXX")
 
 mkdir -p "$(dirname "$LOG")"
-trap 'rm -rf "$STATE_DIR"' EXIT INT TERM
+
+# The signal traps MUST exit. A bash trap handler that only cleans up returns to
+# wherever it interrupted, so `trap 'rm -rf "$STATE_DIR"' TERM` made this script
+# unkillable by SIGTERM *and* deleted its own state directory while the loop kept
+# running — which is what produced 874 spurious APPEARED lines in one log. Cleanup
+# on EXIT, cleanup-and-exit on a signal.
+trap 'rm -rf "$STATE_DIR"' EXIT
+trap 'rm -rf "$STATE_DIR"; exit 130' INT
+trap 'rm -rf "$STATE_DIR"; exit 143' TERM
 
 if [ ! -d "$BACKUP_ROOT" ]; then
 	echo "FATAL: no backup root at $BACKUP_ROOT"
