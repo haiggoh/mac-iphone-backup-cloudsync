@@ -69,3 +69,23 @@
 "quit.message" = "Beim Beenden wird der Vorgang gestoppt und das unvollständige Archiv verworfen. Ein bereits vorhandenes Archiv im Cloud-Ordner bleibt unverändert.";
 "quit.stopAndQuit" = "Stoppen und beenden";
 "quit.keepRunning" = "Weiter archivieren";
+
+/* Menüleiste */
+"menu.about" = "Über %@";
+"menu.settings" = "Einstellungen…";
+"menu.hide" = "%@ ausblenden";
+"menu.hideOthers" = "Andere ausblenden";
+"menu.showAll" = "Alle anzeigen";
+"menu.quit" = "%@ beenden";
+"menu.edit" = "Bearbeiten";
+"menu.cut" = "Ausschneiden";
+"menu.copy" = "Kopieren";
+"menu.paste" = "Einsetzen";
+"menu.selectAll" = "Alles auswählen";
+"menu.window" = "Fenster";
+"menu.minimize" = "Im Dock ablegen";
+"menu.close" = "Schließen";
+
+/* Festplattenvollzugriff */
+"permissions.openSettings" = "Einstellungen für Festplattenvollzugriff öffnen…";
+"permissions.recheck" = "Erneut prüfen";

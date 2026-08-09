@@ -20,6 +20,10 @@ final class BackupViewModel: ObservableObject {
     @Published var finishedURL: URL?
     /// Populated when several distinct cloud roots exist and none is chosen yet.
     @Published var needsCloudSelection: [String] = []
+    /// True when macOS blocked the read. Drives a button that opens the right
+    /// System Settings pane, because Full Disk Access is not a permission the system
+    /// will ever prompt for — without this the user is simply stuck.
+    @Published var needsFullDiskAccess = false
 
     private let configuration: Configuration
     private let logger: AppLogger
@@ -104,12 +108,32 @@ final class BackupViewModel: ObservableObject {
     }
 
     private func show(problem: ConfigurationProblem) {
-        if case .multipleCloudRootsNeedSelection(let names) = problem {
+        switch problem {
+        case .multipleCloudRootsNeedSelection(let names):
             needsCloudSelection = names
+        case .backupRootUnreadable:
+            needsFullDiskAccess = true
+        default:
+            break
         }
         show(headline: L("status.noBackupFolder"),
              status: Presenter.text(for: problem),
              isError: true)
+    }
+
+    /// Takes the user straight to the pane they need, then re-checks when they come
+    /// back. Granting access does not restart the app, so without the re-check the
+    /// window would keep showing the old error and look broken.
+    func openFullDiskAccessSettings() {
+        SystemSettingsLink.openFullDiskAccess()
+    }
+
+    func retryDiscovery() {
+        needsFullDiskAccess = false
+        isError = false
+        headline = L("status.searching")
+        status = ""
+        discover()
     }
 
     private func show(headline: String, status: String, isError: Bool) {

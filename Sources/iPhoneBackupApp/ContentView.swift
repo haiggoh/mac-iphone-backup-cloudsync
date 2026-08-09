@@ -35,6 +35,20 @@ struct ContentView: View {
                 .tint(.blue)
                 .opacity(model.isRunning || model.percentage > 0 ? 1 : 0.35)
 
+            // Only appears when macOS actually blocked the read. Full Disk Access is
+            // not promptable, so pointing at the pane is the only way out; and the
+            // app cannot grant it, which the wording is careful not to imply.
+            if model.needsFullDiskAccess {
+                HStack(spacing: 10) {
+                    Button(L("permissions.openSettings")) {
+                        model.openFullDiskAccessSettings()
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button(L("permissions.recheck")) { model.retryDiscovery() }
+                }
+            }
+
             HStack {
                 Text(model.isRunning ? "\(Int(model.percentage)) %" : " ")
                     .font(.caption.monospacedDigit())

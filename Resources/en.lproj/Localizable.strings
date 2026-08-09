@@ -69,3 +69,23 @@
 "quit.message" = "Quitting now stops it and discards the partial archive. Any existing archive in the cloud folder is untouched.";
 "quit.stopAndQuit" = "Stop and quit";
 "quit.keepRunning" = "Keep archiving";
+
+/* Menu bar */
+"menu.about" = "About %@";
+"menu.settings" = "Settings…";
+"menu.hide" = "Hide %@";
+"menu.hideOthers" = "Hide Others";
+"menu.showAll" = "Show All";
+"menu.quit" = "Quit %@";
+"menu.edit" = "Edit";
+"menu.cut" = "Cut";
+"menu.copy" = "Copy";
+"menu.paste" = "Paste";
+"menu.selectAll" = "Select All";
+"menu.window" = "Window";
+"menu.minimize" = "Minimize";
+"menu.close" = "Close";
+
+/* Full Disk Access */
+"permissions.openSettings" = "Open Full Disk Access settings…";
+"permissions.recheck" = "Check again";

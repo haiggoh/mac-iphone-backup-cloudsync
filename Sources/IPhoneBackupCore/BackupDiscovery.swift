@@ -58,22 +58,47 @@ public struct BackupDiscovery {
         -> Result<DiscoveryResult, ConfigurationProblem> {
 
         let root = configuration.backupRoot
-        var isDirectory: ObjCBool = false
-        guard fileManager.fileExists(atPath: root.path, isDirectory: &isDirectory),
-              isDirectory.boolValue
-        else {
-            return .failure(.backupRootMissing(path: root.path))
-        }
 
-        // Distinguishing unreadable from empty matters: unreadable almost always
-        // means Full Disk Access was never granted, and telling the user their
-        // backup folder is empty when it is really inaccessible sends them looking
-        // in the wrong place.
-        guard let entries = try? fileManager.contentsOfDirectory(
-            at: root,
-            includingPropertiesForKeys: [.isDirectoryKey, .contentModificationDateKey],
-            options: [.skipsHiddenFiles]
-        ) else {
+        // The enumeration is attempted first and its ERROR is what classifies the
+        // failure. `fileExists` cannot distinguish these cases: on a Full Disk
+        // Access-protected directory `stat` typically succeeds while `opendir`
+        // fails, so a permissions problem can look like a present-but-empty folder.
+        //
+        // Using `try?` here and inferring the reason would repeat precisely the
+        // mistake this project was started to fix — discarding an error and then
+        // reporting a confident, wrong conclusion. Telling someone their backup
+        // folder is empty when macOS is actually blocking it sends them looking in
+        // entirely the wrong place.
+        let entries: [URL]
+        do {
+            entries = try fileManager.contentsOfDirectory(
+                at: root,
+                includingPropertiesForKeys: [.isDirectoryKey, .contentModificationDateKey],
+                options: [.skipsHiddenFiles]
+            )
+        } catch let error as NSError {
+            // Codes verified against Foundation on macOS 26 rather than assumed:
+            //   absent  -> NSCocoaErrorDomain 260 (NSFileReadNoSuchFileError), ENOENT
+            //   blocked -> NSCocoaErrorDomain 257 (NSFileReadNoPermissionError), EACCES
+            // Note NSFileNoSuchFileError is 4 and belongs to file *operations*; using
+            // it here silently matched nothing and every absent folder was reported as
+            // unreadable. The underlying POSIX error is checked too, since it is the
+            // more stable of the two.
+            let posix = (error.userInfo[NSUnderlyingErrorKey] as? NSError)
+                .flatMap { $0.domain == NSPOSIXErrorDomain ? $0.code : nil }
+
+            if error.code == NSFileReadNoPermissionError
+                || posix == Int(EACCES) || posix == Int(EPERM) {
+                return .failure(.backupRootUnreadable(path: root.path))
+            }
+            if error.code == NSFileReadNoSuchFileError
+                || error.code == NSFileReadInvalidFileNameError
+                || posix == Int(ENOENT) {
+                return .failure(.backupRootMissing(path: root.path))
+            }
+            // An unrecognised error is reported as unreadable rather than missing:
+            // "we could not read it" is true in every case, whereas "it does not
+            // exist" would be a guess.
             return .failure(.backupRootUnreadable(path: root.path))
         }
 

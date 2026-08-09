@@ -18,6 +18,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Settings is deliberately absent until there is something to configure —
+        // the provider picker and automation toggle. A menu item that opens an empty
+        // window is worse than no menu item.
+        MainMenu.install(applicationName: L("window.title"), showSettings: nil)
+
         model = BackupViewModel(configuration: configuration, logger: logger)
 
         let hosting = NSHostingView(rootView: ContentView(model: model))
