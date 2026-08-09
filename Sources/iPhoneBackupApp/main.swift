@@ -37,7 +37,7 @@ case .automatic:
     let automation = logger.log(.automation)
     let description = String(describing: result)
     if result.isSuccess {
-        automation.info("automatic run finished: \(description, privacy: .public)")
+        automation.notice("automatic run finished: \(description, privacy: .public)")
     } else {
         automation.error("automatic run failed: \(description, privacy: .public)")
     }

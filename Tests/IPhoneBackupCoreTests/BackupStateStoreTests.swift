@@ -28,7 +28,7 @@ final class BackupStateStoreTests: XCTestCase {
 
     func testLoadEmptyState() throws {
         let state = store.load()
-        XCTAssertEqual(state.version, 1)
+        XCTAssertEqual(state.version, ProcessedState.currentVersion)
         XCTAssertTrue(state.records.isEmpty)
         XCTAssertNil(state.lastErrorNotice)
     }
@@ -57,7 +57,7 @@ final class BackupStateStoreTests: XCTestCase {
         try garbage.write(to: storeURL, atomically: true, encoding: .utf8)
 
         let state = store.load()
-        XCTAssertEqual(state.version, 1)
+        XCTAssertEqual(state.version, ProcessedState.currentVersion)
         XCTAssertTrue(state.records.isEmpty)
         XCTAssertNil(state.lastErrorNotice)
 

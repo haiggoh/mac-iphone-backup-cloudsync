@@ -91,14 +91,37 @@ public final class AutomaticRunController {
         }
     }
 
+    /// Wraps `perform()` so every exit path leaves a durable record, including the
+    /// early ones. A `defer` rather than a call at each `return`, because the whole
+    /// point is that no path can forget.
     public func run() -> AutomaticRunResult {
+        var outcome: AutomaticRunResult = .nothingToDo
+        defer {
+            do {
+                try store.recordRun(
+                    summary: String(describing: outcome),
+                    wasSuccess: outcome.isSuccess,
+                    wasAutomatic: true,
+                    now: now())
+            } catch {
+                // Best-effort: failing to record the run must not change what the run
+                // itself reported, or a bookkeeping hiccup would mask a real result.
+                logger.log(.automation).error(
+                    "could not record the run outcome: \(String(describing: error))")
+            }
+        }
+        outcome = perform()
+        return outcome
+    }
+
+    private func perform() -> AutomaticRunResult {
         let automation = logger.log(.automation)
 
         // The lock comes first so two overlapping launches cannot both spend a
         // minute waiting out the quiet period before discovering each other.
         do {
             guard try lock.acquire() == .acquired else {
-                automation.info("another instance holds the lock; exiting successfully")
+                automation.notice("another instance holds the lock; exiting successfully")
                 return .alreadyRunning
             }
         } catch {
@@ -123,10 +146,10 @@ public final class AutomaticRunController {
         }
 
         guard let candidate = discovery.newestUnprocessed(in: discovered, store: store) else {
-            automation.info("nothing to do: no unprocessed complete backup")
+            automation.notice("nothing to do: no unprocessed complete backup")
             return .nothingToDo
         }
-        logger.log(.discovery).info("selected \(candidate.logDescription, privacy: .public)")
+        logger.log(.discovery).notice("selected \(candidate.logDescription, privacy: .public)")
 
         // MARK: Is it actually finished?
 
@@ -138,7 +161,7 @@ public final class AutomaticRunController {
             now: now
         ) {
         case .failure(let reason):
-            logger.log(.completion).info(
+            logger.log(.completion).notice(
                 "not ready: \(String(describing: reason), privacy: .public)")
             return .incompleteBackup(reason)
         case .success:
@@ -175,7 +198,7 @@ public final class AutomaticRunController {
         if case .insufficientBattery(let remaining, let needed) = powerMonitor.verdict(
             forSourceBytes: sourceBytes
         ) {
-            automation.info("deferring: battery would not outlast the job")
+            automation.notice("deferring: battery would not outlast the job")
             return .deferred(.insufficientBattery(
                 secondsRemaining: remaining, secondsNeeded: needed))
         }
@@ -227,7 +250,7 @@ public final class AutomaticRunController {
             return .failed(.stateWriteFailed(String(describing: error)))
         }
 
-        logger.log(.archive).info(
+        logger.log(.archive).notice(
             "archived \(outcome.sizeBytes) bytes in \(Int(outcome.duration))s")
 
         // Advisory only, and after the fact — it can never block or delete.
