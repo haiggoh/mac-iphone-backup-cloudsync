@@ -138,6 +138,20 @@ public struct Configuration {
             appropriateFor: nil, create: false
         )) ?? home.appendingPathComponent("Library/Application Support")
 
+        let supportDirectory = appSupport.appendingPathComponent(identifier)
+
+        // Two phases, because the settings file lives at a path this function
+        // computes. Paths first, then read the user's choices, then combine.
+        let settings = SettingsStore(
+            url: supportDirectory.appendingPathComponent("settings.json"),
+            fileManager: fileManager
+        ).load()
+
+        // A command-line override beats the saved setting, so a test run can point
+        // somewhere harmless without editing the user's real configuration.
+        let destinationOverride = value(for: "--destination-root", in: arguments)
+            ?? settings.cloudRootPath
+
         return Configuration(
             bundleIdentifier: identifier,
             backupRoot: sourceRoot,
@@ -145,9 +159,19 @@ public struct Configuration {
             // destination where possible, making the final step a rename rather
             // than a second 50 GB copy.
             stagingRoot: home.appendingPathComponent(".iphone-backup-staging"),
-            applicationSupportDirectory: appSupport.appendingPathComponent(identifier),
-            destinationRootOverride: value(for: "--destination-root", in: arguments)
+            applicationSupportDirectory: supportDirectory,
+            destinationSubdirectory: settings.destinationSubdirectory,
+            quietPeriod: defaultQuietPeriod,
+            minimumSettleAge: settings.minimumSettleAge,
+            archivesToKeep: settings.archivesToKeep,
+            destinationRootOverride: destinationOverride
         )
+    }
+
+    /// The settings file backing `resolve()`. Documented in the README so a user can
+    /// find and edit it.
+    public var settingsStore: SettingsStore {
+        SettingsStore(url: settingsURL)
     }
 
     /// `--flag value`. Returns nil when the flag is absent or is the last argument

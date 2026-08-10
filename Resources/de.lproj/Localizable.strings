@@ -89,3 +89,45 @@
 /* Festplattenvollzugriff */
 "permissions.openSettings" = "Einstellungen für Festplattenvollzugriff öffnen…";
 "permissions.recheck" = "Erneut prüfen";
+
+/* Automatik */
+"automation.title" = "Automatisch archivieren";
+"automation.stateOn" = "Ein";
+"automation.stateOff" = "Aus";
+"automation.stateHalf" = "Installiert, aber nicht aktiv";
+"automation.enable" = "Einschalten";
+"automation.disable" = "Ausschalten";
+"automation.checkNow" = "Jetzt prüfen";
+"automation.interval" = "Prüfen alle";
+"automation.everyMinutes" = "%ld Minuten";
+"automation.showSettingsFile" = "Einstellungsdatei anzeigen";
+"automation.lastCheck" = "Letzte Prüfung: %@ — %@";
+"automation.neverRun" = "Letzte Prüfung: nie";
+"automation.lastArchive" = "Letztes Archiv: %@ — %@";
+"automation.noArchiveYet" = "Letztes Archiv: noch keines";
+"automation.checkResult" = "Gerade geprüft: %@";
+"automation.mismatch" = "Automatisches Archivieren ist in den Einstellungen aktiviert, es ist aber kein Auftrag geladen. Zum erneuten Einrichten aus- und wieder einschalten.";
+
+/* Fehler der Automatik — jeweils konkret benannt, da jeder anders zu beheben ist */
+"automation.badLocation" = "Automatisches Archivieren kann von diesem Ort aus nicht eingerichtet werden.";
+"automation.concernTranslocated" = "macOS führt die App aus einer temporären Kopie aus. Bitte in den Programme-Ordner verschieben und von dort öffnen.";
+"automation.concernReadOnly" = "Die App liegt auf einem schreibgeschützten Volume.";
+"automation.concernVolatile" = "Die App liegt in einem Ordner, der ersetzt oder geleert wird — der Zeitplan würde dadurch aufhören zu funktionieren. Bitte in den Programme-Ordner verschieben.";
+"automation.writeFailed" = "Die Zeitplandatei konnte nicht geschrieben werden: %@";
+"automation.plistInvalid" = "Die Zeitplandatei wurde als fehlerhaft abgewiesen: %@";
+"automation.bootstrapFailed" = "macOS hat das Laden des Zeitplans abgelehnt (Code %lld): %@";
+"automation.bootoutFailed" = "macOS hat das Entladen des Zeitplans abgelehnt (Code %lld): %@";
+"automation.verificationFailed" = "Der Zeitplan ist nicht wirksam geworden: %@";
+
+/* Erster Start */
+"firstRun.title" = "Wohin sollen die Archive?";
+"firstRun.explain" = "Cloud-Ordner auswählen, in dem die iPhone-Backup-Archive gespeichert werden. Es werden nur Ordner aufgeführt, die auf diesem Mac gefunden wurden. Die Auswahl kann später in der Einstellungsdatei geändert werden.";
+"firstRun.noProvidersFound" = "Auf diesem Mac wurde kein Cloud-Ordner gefunden. Bitte unten einen Ordner manuell auswählen.";
+"firstRun.customFolder" = "Anderen Ordner auswählen…";
+"firstRun.chooseFolder" = "Auswählen";
+"firstRun.confirm" = "Weiter";
+"firstRun.automationOptional" = "Automatisches Archivieren ist optional und bleibt ausgeschaltet, bis es aktiviert wird. Manuelles Archivieren ist jederzeit möglich.";
+
+/* Hinweise zu Anbietern */
+"caveat.mayEvict" = "Dieser Dienst ersetzt lokale Kopien möglicherweise durch Platzhalter, um Speicherplatz zu sparen — ein Archiv muss dann erneut geladen werden.";
+"caveat.smallFreeTier" = "Der kostenlose Speicherplatz ist kleiner als ein typisches iPhone-Backup.";

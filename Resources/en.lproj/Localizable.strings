@@ -89,3 +89,45 @@
 /* Full Disk Access */
 "permissions.openSettings" = "Open Full Disk Access settings…";
 "permissions.recheck" = "Check again";
+
+/* Automation */
+"automation.title" = "Automatic archiving";
+"automation.stateOn" = "On";
+"automation.stateOff" = "Off";
+"automation.stateHalf" = "Installed but not running";
+"automation.enable" = "Turn on";
+"automation.disable" = "Turn off";
+"automation.checkNow" = "Check now";
+"automation.interval" = "Check every";
+"automation.everyMinutes" = "%ld minutes";
+"automation.showSettingsFile" = "Show settings file";
+"automation.lastCheck" = "Last check: %@ — %@";
+"automation.neverRun" = "Last check: never";
+"automation.lastArchive" = "Last archive: %@ — %@";
+"automation.noArchiveYet" = "Last archive: none yet";
+"automation.checkResult" = "Checked just now: %@";
+"automation.mismatch" = "Automatic archiving is switched on in settings, but no job is loaded. Turn it off and on again to reinstall it.";
+
+/* Automation failures — named specifically, because each has a different fix */
+"automation.badLocation" = "Automatic archiving cannot be set up from this location.";
+"automation.concernTranslocated" = "macOS is running the app from a temporary copy. Move it to your Applications folder and open it from there.";
+"automation.concernReadOnly" = "The app is on a read-only volume.";
+"automation.concernVolatile" = "The app is in a folder that gets replaced or cleared, so the schedule would stop working. Move it to your Applications folder.";
+"automation.writeFailed" = "The schedule file could not be written: %@";
+"automation.plistInvalid" = "The schedule file was rejected as malformed: %@";
+"automation.bootstrapFailed" = "macOS refused to load the schedule (code %lld): %@";
+"automation.bootoutFailed" = "macOS refused to unload the schedule (code %lld): %@";
+"automation.verificationFailed" = "The schedule did not take effect: %@";
+
+/* First run */
+"firstRun.title" = "Where should archives go?";
+"firstRun.explain" = "Pick the cloud folder to keep your iPhone backup archives in. Only folders found on this Mac are listed. You can change this later in the settings file.";
+"firstRun.noProvidersFound" = "No cloud folder was found on this Mac. Choose a folder manually below.";
+"firstRun.customFolder" = "Choose another folder…";
+"firstRun.chooseFolder" = "Choose";
+"firstRun.confirm" = "Continue";
+"firstRun.automationOptional" = "Automatic archiving is optional and stays off until you turn it on. You can archive manually whenever you like.";
+
+/* Provider caveats */
+"caveat.mayEvict" = "This service may replace local copies with placeholders to save space, so an archive can need re-downloading.";
+"caveat.smallFreeTier" = "The free storage tier is smaller than a typical iPhone backup.";

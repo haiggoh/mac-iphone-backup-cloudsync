@@ -45,19 +45,39 @@ public struct CloudRootLocator {
 
     private let fileManager: FileManager
     private let homeDirectory: URL
+    private let providers: [CloudProvider]
 
-    public init(fileManager: FileManager = .default, homeDirectory: URL? = nil) {
+    public init(
+        fileManager: FileManager = .default,
+        homeDirectory: URL? = nil,
+        providers: [CloudProvider] = CloudProvider.discoverable
+    ) {
         self.fileManager = fileManager
         // Resolved through Foundation rather than interpolating a username.
         self.homeDirectory = homeDirectory ?? fileManager.homeDirectoryForCurrentUser
+        self.providers = providers
     }
 
-    /// Directories that OneDrive is known to use, most modern first.
-    private var searchLocations: [(container: URL, prefix: String)] {
-        [
-            (homeDirectory.appendingPathComponent("Library/CloudStorage"), "OneDrive"),
-            (homeDirectory, "OneDrive"),
-        ]
+    /// Every place the requested providers are known to keep a folder, in the order
+    /// they should be preferred — modern container locations before legacy home ones,
+    /// so a legacy alias never wins over the real folder it points at.
+    private var searchLocations: [(container: URL, prefix: String?)] {
+        providers.flatMap { provider in
+            provider.locations.map { location -> (container: URL, prefix: String?) in
+                switch location {
+                case .prefixed(let container, let prefix):
+                    let base = container.isEmpty
+                        ? homeDirectory
+                        : homeDirectory.appendingPathComponent(container)
+                    return (base, prefix)
+                case .fixed(let relativePath):
+                    // A fixed path is its own answer; there is nothing to scan for.
+                    // Modelled as the parent plus an exact name so one loop handles both.
+                    let full = homeDirectory.appendingPathComponent(relativePath)
+                    return (full, nil)
+                }
+            }
+        }
     }
 
     /// Every distinct root on this machine, in discovery order, deduped by
@@ -68,11 +88,20 @@ public struct CloudRootLocator {
         var roots: [CloudRoot] = []
 
         for location in searchLocations {
+            guard let prefix = location.prefix else {
+                // Fixed path (iCloud Drive): the container IS the root.
+                guard isUsableDirectory(location.container) else { continue }
+                let root = CloudRoot(url: location.container)
+                guard seen.insert(root.canonicalPath).inserted else { continue }
+                roots.append(root)
+                continue
+            }
+
             guard let names = try? fileManager.contentsOfDirectory(
                 atPath: location.container.path
             ) else { continue }
 
-            for name in names.sorted() where name.hasPrefix(location.prefix) {
+            for name in names.sorted() where name.hasPrefix(prefix) {
                 let candidate = location.container.appendingPathComponent(name)
                 guard isUsableDirectory(candidate) else { continue }
 

@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ContentView: View {
     @ObservedObject var model: BackupViewModel
+    @ObservedObject var automation: AutomationViewModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -71,9 +72,19 @@ struct ContentView: View {
                 .keyboardShortcut(.defaultAction)
                 .disabled(model.isRunning || !model.isReady)
             }
+
+            AutomationSection(model: automation)
         }
         .padding(22)
         .frame(width: 480)
-        .onAppear { model.discover() }
+        .onAppear {
+            model.discover()
+            automation.refresh()
+        }
+        // Presented rather than inlined so the choice is made before anything else can
+        // be attempted, and only ever once.
+        .sheet(isPresented: $automation.isFirstRun) {
+            FirstRunSheet(model: automation)
+        }
     }
 }

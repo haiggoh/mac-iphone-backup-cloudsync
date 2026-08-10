@@ -105,6 +105,50 @@ enum Presenter {
         }
     }
 
+    /// LaunchAgent failures, named specifically. "Could not enable automation" would
+    /// leave the user guessing between a bad install location, a malformed plist and a
+    /// refusal from launchd — three problems with three different fixes.
+    static func text(forAgentError error: Error) -> String {
+        guard let agentError = error as? LaunchAgentError else {
+            return String(describing: error)
+        }
+        switch agentError {
+        case .unsuitableInstallation(let concerns):
+            let detail = concerns.map(text(forConcern:)).joined(separator: " ")
+            return "\(L("automation.badLocation")) \(detail)"
+        case .couldNotWritePlist(let detail):
+            return L("automation.writeFailed", detail)
+        case .plistInvalid(let detail):
+            return L("automation.plistInvalid", detail)
+        case .bootstrapFailed(let code, let output):
+            return L("automation.bootstrapFailed", Int64(code), output)
+        case .bootoutFailed(let code, let output):
+            return L("automation.bootoutFailed", Int64(code), output)
+        case .verificationFailed(let detail):
+            return L("automation.verificationFailed", detail)
+        }
+    }
+
+    static func text(forConcern concern: InstallationConcern) -> String {
+        switch concern {
+        case .translocated:
+            return L("automation.concernTranslocated")
+        case .readOnlyVolume:
+            return L("automation.concernReadOnly")
+        case .volatileLocation:
+            return L("automation.concernVolatile")
+        }
+    }
+
+    static func text(forCaveat caveat: CloudArchiveCaveat) -> String {
+        switch caveat {
+        case .mayEvictLocalCopies:
+            return L("caveat.mayEvict")
+        case .smallFreeTier:
+            return L("caveat.smallFreeTier")
+        }
+    }
+
     static func bytes(_ value: Int64) -> String {
         ByteCountFormatter.string(fromByteCount: value, countStyle: .file)
     }
