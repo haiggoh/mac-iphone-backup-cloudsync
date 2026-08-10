@@ -56,6 +56,47 @@ case .checkOnly:
     print("logs: \(logger.inspectionCommand)")
     exit(result.exitCode)
 
+case .installAutomation:
+    let manager = LaunchAgentManager(configuration: configuration)
+    let site = LaunchAgentManager.inspectInstallation(bundleURL: Bundle.main.bundleURL)
+    do {
+        // The path in the installed plist is derived from the running bundle here, at
+        // install time. Nothing about this machine is committed to the repository.
+        let state = try manager.install(bundleURL: Bundle.main.bundleURL)
+        print("automation installed: \(state)")
+        print("  plist:      \(manager.plistURL.path)")
+        print("  runs:       \(site.executableURL.path) \(ApplicationMode.automaticFlag)")
+        print("  interval:   \(LaunchAgentManager.defaultStartInterval)s")
+        logger.log(.launchAgent).notice("automation installed")
+        exit(0)
+    } catch {
+        // Say what is wrong specifically. "Installation failed" would leave the user
+        // guessing between a bad location, a malformed plist and a launchd refusal.
+        FileHandle.standardError.write(Data("automation NOT installed: \(error)\n".utf8))
+        if case LaunchAgentError.unsuitableInstallation(let concerns) = error {
+            for concern in concerns {
+                FileHandle.standardError.write(Data("  \(concern)\n".utf8))
+            }
+            FileHandle.standardError.write(
+                Data("  move the app to ~/Applications and try again\n".utf8))
+        }
+        logger.log(.launchAgent).error("automation install failed: \(String(describing: error))")
+        exit(1)
+    }
+
+case .removeAutomation:
+    let manager = LaunchAgentManager(configuration: configuration)
+    do {
+        try manager.uninstall()
+        print("automation removed")
+        logger.log(.launchAgent).notice("automation removed")
+        exit(0)
+    } catch {
+        FileHandle.standardError.write(Data("automation NOT removed: \(error)\n".utf8))
+        logger.log(.launchAgent).error("automation removal failed: \(String(describing: error))")
+        exit(1)
+    }
+
 case .manual:
     let application = NSApplication.shared
     let delegate = AppDelegate(configuration: configuration, logger: logger)

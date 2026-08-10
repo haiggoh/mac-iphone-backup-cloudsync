@@ -9,11 +9,26 @@ public enum ApplicationMode: Equatable {
     case manual
     case automatic
     case checkOnly
+    /// Install or remove the LaunchAgent from the command line.
+    ///
+    /// The UI offers the same thing, but these exist as a first-class surface rather
+    /// than a test hook: they make automation scriptable, they give a user a way to
+    /// recover when the UI cannot launch, and they report a real exit status, which a
+    /// button cannot.
+    case installAutomation
+    case removeAutomation
 
     public static let automaticFlag = "--automatic"
     public static let checkOnlyFlag = "--check-only"
+    public static let installAutomationFlag = "--install-automation"
+    public static let removeAutomationFlag = "--remove-automation"
 
+    /// Order matters where flags could be combined: the destructive-sounding one is
+    /// checked before the constructive one, so `--install-automation
+    /// --remove-automation` removes rather than leaving a job loaded.
     public static func parse(arguments: [String]) -> ApplicationMode {
+        if arguments.contains(removeAutomationFlag) { return .removeAutomation }
+        if arguments.contains(installAutomationFlag) { return .installAutomation }
         if arguments.contains(automaticFlag) { return .automatic }
         if arguments.contains(checkOnlyFlag) { return .checkOnly }
         return .manual
@@ -21,6 +36,11 @@ public enum ApplicationMode: Equatable {
 
     public var suppressesUserInterface: Bool {
         self != .manual
+    }
+
+    /// Human-readable list for a usage message.
+    public static var allFlags: [String] {
+        [automaticFlag, checkOnlyFlag, installAutomationFlag, removeAutomationFlag]
     }
 }
 
