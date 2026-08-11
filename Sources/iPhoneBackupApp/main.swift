@@ -53,7 +53,13 @@ case .checkOnly:
     // right now, changes nothing, and does not block on the quiet period.
     let result = makeController().check()
     print(String(describing: result))
-    print("logs: \(logger.inspectionCommand)")
+    // The state file first, because it is the channel that actually works. `log show`
+    // needs administrator rights and otherwise fails with "Could not open local log
+    // store: Operation not permitted", so offering it alone sends a standard user
+    // after a command they cannot run.
+    print("last run: \(configuration.stateURL.path)")
+    print("logs:     \(logger.inspectionCommand)")
+    print("          (needs admin rights; the state file above does not)")
     exit(result.exitCode)
 
 case .installAutomation:

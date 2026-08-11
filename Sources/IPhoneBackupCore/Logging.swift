@@ -17,9 +17,16 @@ public enum LogCategory: String, CaseIterable {
 /// Unified-logging access, keyed on the bundle identifier as subsystem.
 ///
 /// Unified logging rather than a file in /tmp: it survives without the app being
-/// running, is readable with one documented `log show` command, and cannot fill a
-/// disk. The tradeoff is that entries are not permanent, which is fine — these are
-/// diagnostics, not the record of what was archived. That record is the state file.
+/// running and cannot fill a disk. The tradeoff is that entries are not permanent,
+/// which is fine — these are diagnostics, not the record of what was archived. That
+/// record is the state file.
+///
+/// **Reading it back requires administrator rights**, which is why the state file is
+/// not merely a nicety. As a standard user, `log show` fails with "Could not open local
+/// log store: Operation not permitted" and `log stream` refuses with "Must be admin"
+/// (verified on this machine). So `inspectionCommand` below is the command for someone
+/// who *can* read the store; anything the app itself needs to show a user comes from
+/// `LastRun` in the state file instead.
 ///
 /// **Level matters more than it looks.** `os_log` does not persist `.debug` or
 /// `.info` to disk at all — they live in a memory ring buffer and are gone once the
@@ -53,8 +60,11 @@ public struct AppLogger {
         loggers[category] ?? Logger(subsystem: subsystem, category: category.rawValue)
     }
 
-    /// The command to hand a user asking how to see what happened. Shows the
-    /// persisted levels, which is where every outcome is recorded.
+    /// The command to hand someone with administrator rights who wants to see what
+    /// happened. Shows the persisted levels, which is where every outcome is recorded.
+    ///
+    /// Never present this as *the* answer to "how do I see what happened" — most users
+    /// cannot run it. Pair it with the state file, which anyone can read.
     public var inspectionCommand: String {
         "log show --last 1h --predicate 'subsystem == \"\(subsystem)\"'"
     }
