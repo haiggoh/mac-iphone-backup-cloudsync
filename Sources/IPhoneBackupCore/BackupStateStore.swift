@@ -60,27 +60,50 @@ public struct ErrorNotice: Codable, Equatable {
 /// unattended run lives somewhere the user cannot look is not diagnosable, so the
 /// outcome is written here as well, where the app itself can read it back and show it.
 ///
-/// `summary` is a stable enum description, not localized text: it is persisted, and a
-/// stored string that changes with the UI language would be unreadable after a
-/// language switch.
+/// Neither stored string is localized text: both are persisted, and a stored string
+/// that changed with the UI language would be unreadable after a language switch. The
+/// UI localizes at display time, from `code`.
 public struct LastRun: Codable, Equatable {
     public let at: Date
+
+    /// Developer-facing detail: `String(describing:)` of the outcome, payload and all.
+    ///
+    /// Useful in a bug report, and **not** fit to show a user — it is an unlocalized
+    /// Swift enum dump that interpolates paths. It was displayed verbatim in the
+    /// Automation section once; `code` exists so that cannot happen again.
     public let summary: String
+
+    /// Stable, payload-free outcome identifier — see `AutomaticRunResult.code`. This is
+    /// what the UI localizes from.
+    ///
+    /// Optional because version-2 records predate it. A record without one falls back
+    /// to a generic message rather than exposing `summary`.
+    public let code: String?
+
     public let wasSuccess: Bool
     /// Distinguishes an unattended run from a manual one, since "nothing happened for
     /// three days" means very different things in each case.
     public let wasAutomatic: Bool
 
-    public init(at: Date, summary: String, wasSuccess: Bool, wasAutomatic: Bool) {
+    public init(
+        at: Date,
+        summary: String,
+        code: String? = nil,
+        wasSuccess: Bool,
+        wasAutomatic: Bool
+    ) {
         self.at = at
         self.summary = summary
+        self.code = code
         self.wasSuccess = wasSuccess
         self.wasAutomatic = wasAutomatic
     }
 }
 
 public struct ProcessedState: Codable, Equatable {
-    public static let currentVersion = 2
+    /// 3 adds `LastRun.code`. As with every bump so far this only *adds* an optional
+    /// field, so an older file still decodes and `load()` simply adopts the new number.
+    public static let currentVersion = 3
 
     public var version: Int
     public var records: [ProcessedArchive]
@@ -241,13 +264,18 @@ public struct BackupStateStore {
     /// LaunchAgent is indistinguishable from a machine with no new backups.
     public func recordRun(
         summary: String,
+        code: String? = nil,
         wasSuccess: Bool,
         wasAutomatic: Bool,
         now: Date = Date()
     ) throws {
         var state = load()
         state.lastRun = LastRun(
-            at: now, summary: summary, wasSuccess: wasSuccess, wasAutomatic: wasAutomatic)
+            at: now,
+            summary: summary,
+            code: code,
+            wasSuccess: wasSuccess,
+            wasAutomatic: wasAutomatic)
         try save(state)
     }
 

@@ -27,6 +27,14 @@ final class AutomationViewModel: ObservableObject {
     @Published var automationState: LaunchAgentState = .notInstalled
     @Published var intervalMinutes: Int = 5
     @Published var lastRunDescription: String = ""
+    /// Whether the last outcome is one the user has to do something about.
+    ///
+    /// Mirrors `AutomaticRunResult.isSuccess`, which already draws the line in the right
+    /// place: "no new backup" and "not settled yet" are normal and must not be dressed
+    /// up as failures, while a missing permission or a failed archive must stand out.
+    /// Without this every outcome rendered identically, so a routine check looked as
+    /// alarming as a real problem.
+    @Published var lastRunNeedsAttention = false
     @Published var lastArchiveDescription: String = ""
     @Published var retentionWarning: String?
     @Published var automationError: String?
@@ -96,11 +104,15 @@ final class AutomationViewModel: ObservableObject {
         formatter.timeStyle = .short
 
         if let last = store.lastRun() {
+            // From the stored code, never from `summary` — that is a raw Swift enum
+            // dump complete with a home-folder path, and it was reaching the UI.
             lastRunDescription = L("automation.lastCheck",
                                    formatter.string(from: last.at),
-                                   last.summary)
+                                   Presenter.text(forRunCode: last.code))
+            lastRunNeedsAttention = !last.wasSuccess
         } else {
             lastRunDescription = L("automation.neverRun")
+            lastRunNeedsAttention = false
         }
 
         let archived = store.load().records
@@ -215,7 +227,10 @@ final class AutomationViewModel: ObservableObject {
             logger: logger
         )
         let result = controller.check()
-        lastRunDescription = L("automation.checkResult", String(describing: result))
+        // A live result, so the richer presenter applies — it can name the archive, the
+        // remaining wait, the shortfall in free space.
+        lastRunDescription = L("automation.checkResult", Presenter.text(for: result))
+        lastRunNeedsAttention = !result.isSuccess
     }
 
     func revealSettingsFile() {

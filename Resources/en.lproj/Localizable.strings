@@ -108,6 +108,46 @@
 "automation.checkResult" = "Checked just now: %@";
 "automation.mismatch" = "Automatic archiving is switched on in settings, but no job is loaded. Turn it off and on again to reinstall it.";
 
+/* Run outcomes, live — shown right after "Check now", so these may name specifics */
+"run.archived" = "Archived %@";
+"run.nothingToDo" = "Nothing to do — no new backup";
+"run.alreadyRunning" = "Another run is already in progress";
+"run.unknown" = "Finished (no details recorded)";
+
+/* Run outcomes, from the stored record.
+   Keyed on the payload-free codes in ApplicationMode.swift, so deliberately without
+   specifics — the stored code carries no path, count or duration. Built at runtime as
+   "run.code." + code, which is why check-localization.sh has a prefix rule for them.
+   Every one of these replaces a raw Swift enum dump that used to be shown verbatim. */
+"run.code.archived" = "Backup archived";
+"run.code.nothingToDo" = "Nothing to do — no new backup";
+"run.code.alreadyRunning" = "Another run was already in progress";
+
+"run.code.incomplete.snapshotNotFinished" = "The backup was still running";
+"run.code.incomplete.manifestMissing" = "The backup was incomplete — no manifest";
+"run.code.incomplete.manifestUnreadable" = "The backup manifest could not be read";
+"run.code.incomplete.statusPlistUnreadable" = "The backup status file could not be read";
+"run.code.incomplete.metadataStillChanging" = "The backup was still being written to";
+"run.code.incomplete.noCompletionDate" = "The backup had no completion date";
+"run.code.incomplete.watchedFileEmpty" = "A backup file was still empty";
+"run.code.incomplete.stillSettling" = "Waiting for the backup to settle";
+
+"run.code.deferred.insufficientBattery" = "Postponed to save battery — connect power";
+
+"run.code.configuration.multipleCloudRootsNeedSelection" = "Several cloud folders found — choose one";
+"run.code.configuration.noCloudRootFound" = "No cloud folder found";
+"run.code.configuration.configuredCloudRootMissing" = "The chosen cloud folder no longer exists";
+"run.code.configuration.backupRootMissing" = "No iPhone backup folder on this Mac";
+"run.code.configuration.backupRootUnreadable" = "No access to the backup folder — Full Disk Access is needed";
+
+"run.code.failed.archiveToolFailed" = "Creating the archive failed";
+"run.code.failed.archiveImplausiblySmall" = "The archive came out implausibly small and was rejected";
+"run.code.failed.insufficientFreeSpace" = "Not enough free disk space";
+"run.code.failed.stagingUnavailable" = "The staging folder could not be used";
+"run.code.failed.finalMoveFailed" = "The archive could not be moved to the cloud folder";
+"run.code.failed.stateWriteFailed" = "The archive was created but could not be recorded";
+"run.code.failed.archiveAlreadyExistsWithoutState" = "An archive for that backup already exists";
+
 /* Automation failures — named specifically, because each has a different fix */
 "automation.badLocation" = "Automatic archiving cannot be set up from this location.";
 "automation.concernTranslocated" = "macOS is running the app from a temporary copy. Move it to your Applications folder and open it from there.";

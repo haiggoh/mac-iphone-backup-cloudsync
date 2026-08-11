@@ -43,11 +43,15 @@ struct AutomationSection: View {
             }
 
             Group {
+                // Orange, not red: this is the *last* outcome, which may well have been
+                // fixed since. Red would read as "broken right now", and the same line
+                // is shown for a run that happened days ago.
                 Text(model.lastRunDescription)
+                    .foregroundStyle(model.lastRunNeedsAttention ? Color.orange : .secondary)
                 Text(model.lastArchiveDescription)
+                    .foregroundStyle(.secondary)
             }
             .font(.caption)
-            .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
 
             // Retention is advisory only — this app has no code path that deletes an

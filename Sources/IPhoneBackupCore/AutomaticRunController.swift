@@ -99,7 +99,10 @@ public final class AutomaticRunController {
         defer {
             do {
                 try store.recordRun(
+                    // Both: the code is what the UI shows, the description is what a
+                    // bug report needs.
                     summary: String(describing: outcome),
+                    code: outcome.code,
                     wasSuccess: outcome.isSuccess,
                     wasAutomatic: true,
                     now: now())

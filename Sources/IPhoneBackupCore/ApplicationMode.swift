@@ -78,6 +78,29 @@ public enum AutomaticRunResult: Equatable {
     }
 
     public var isSuccess: Bool { exitCode == 0 }
+
+    /// A stable, payload-free identifier for this outcome, safe to persist and to
+    /// look up a localized message by.
+    ///
+    /// `String(describing:)` was used for both of those jobs and is wrong for each.
+    /// It is not stable — renaming a case silently changes stored values — it is not
+    /// localizable, and it interpolates the payload, which is how a full home-folder
+    /// path ended up rendered in the UI and written to the state file. These codes
+    /// deliberately carry **no payload**: nothing here can contain a path, a device
+    /// name or an account.
+    ///
+    /// Values are part of the on-disk format. Add cases freely; do not rename them.
+    public var code: String {
+        switch self {
+        case .archived: return "archived"
+        case .nothingToDo: return "nothingToDo"
+        case .alreadyRunning: return "alreadyRunning"
+        case .incompleteBackup(let reason): return "incomplete.\(reason.code)"
+        case .deferred(let reason): return "deferred.\(reason.code)"
+        case .configurationRequired(let problem): return "configuration.\(problem.code)"
+        case .failed(let failure): return "failed.\(failure.code)"
+        }
+    }
 }
 
 /// The three reason types below conform to `Error` so they can be the failure
@@ -96,11 +119,32 @@ public enum IncompleteReason: Equatable, Error {
     /// Something was modified too recently to trust. `newestAge` is how long ago
     /// the most recent write was, `required` the minimum age demanded.
     case stillSettling(newestAge: TimeInterval, required: TimeInterval)
+
+    /// See `AutomaticRunResult.code`. Payload-free and part of the on-disk format.
+    public var code: String {
+        switch self {
+        case .snapshotNotFinished: return "snapshotNotFinished"
+        case .manifestMissing: return "manifestMissing"
+        case .manifestUnreadable: return "manifestUnreadable"
+        case .statusPlistUnreadable: return "statusPlistUnreadable"
+        case .metadataStillChanging: return "metadataStillChanging"
+        case .noCompletionDate: return "noCompletionDate"
+        case .watchedFileEmpty: return "watchedFileEmpty"
+        case .stillSettling: return "stillSettling"
+        }
+    }
 }
 
 public enum DeferralReason: Equatable, Error {
     /// On battery, and the estimated job outlasts the remaining charge.
     case insufficientBattery(secondsRemaining: TimeInterval?, secondsNeeded: TimeInterval)
+
+    /// See `AutomaticRunResult.code`. Payload-free and part of the on-disk format.
+    public var code: String {
+        switch self {
+        case .insufficientBattery: return "insufficientBattery"
+        }
+    }
 }
 
 public enum ConfigurationProblem: Equatable, Error {
@@ -113,6 +157,17 @@ public enum ConfigurationProblem: Equatable, Error {
     case configuredCloudRootMissing(path: String)
     case backupRootMissing(path: String)
     case backupRootUnreadable(path: String)
+
+    /// See `AutomaticRunResult.code`. Payload-free and part of the on-disk format.
+    public var code: String {
+        switch self {
+        case .multipleCloudRootsNeedSelection: return "multipleCloudRootsNeedSelection"
+        case .noCloudRootFound: return "noCloudRootFound"
+        case .configuredCloudRootMissing: return "configuredCloudRootMissing"
+        case .backupRootMissing: return "backupRootMissing"
+        case .backupRootUnreadable: return "backupRootUnreadable"
+        }
+    }
 }
 
 public enum RunFailure: Equatable, Error {
@@ -123,4 +178,17 @@ public enum RunFailure: Equatable, Error {
     case finalMoveFailed(String, stagedArchivePath: String)
     case stateWriteFailed(String)
     case archiveAlreadyExistsWithoutState(path: String)
+
+    /// See `AutomaticRunResult.code`. Payload-free and part of the on-disk format.
+    public var code: String {
+        switch self {
+        case .archiveToolFailed: return "archiveToolFailed"
+        case .archiveImplausiblySmall: return "archiveImplausiblySmall"
+        case .insufficientFreeSpace: return "insufficientFreeSpace"
+        case .stagingUnavailable: return "stagingUnavailable"
+        case .finalMoveFailed: return "finalMoveFailed"
+        case .stateWriteFailed: return "stateWriteFailed"
+        case .archiveAlreadyExistsWithoutState: return "archiveAlreadyExistsWithoutState"
+        }
+    }
 }

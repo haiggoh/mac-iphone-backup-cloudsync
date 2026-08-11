@@ -108,6 +108,45 @@
 "automation.checkResult" = "Gerade geprüft: %@";
 "automation.mismatch" = "Automatisches Archivieren ist in den Einstellungen aktiviert, es ist aber kein Auftrag geladen. Zum erneuten Einrichten aus- und wieder einschalten.";
 
+/* Ergebnisse eines Durchlaufs, live — direkt nach „Jetzt prüfen“, daher mit Details */
+"run.archived" = "%@ archiviert";
+"run.nothingToDo" = "Nichts zu tun — kein neues Backup";
+"run.alreadyRunning" = "Es läuft bereits ein Durchlauf";
+"run.unknown" = "Abgeschlossen (keine Details aufgezeichnet)";
+
+/* Ergebnisse eines Durchlaufs, aus dem gespeicherten Eintrag.
+   Basierend auf den Codes in ApplicationMode.swift, die bewusst keine Nutzdaten
+   enthalten — kein Pfad, keine Anzahl, keine Dauer. Der Schlüssel wird zur Laufzeit
+   aus „run.code.“ + Code gebildet, daher die Präfix-Regel in check-localization.sh. */
+"run.code.archived" = "Backup archiviert";
+"run.code.nothingToDo" = "Nichts zu tun — kein neues Backup";
+"run.code.alreadyRunning" = "Es lief bereits ein Durchlauf";
+
+"run.code.incomplete.snapshotNotFinished" = "Das Backup lief noch";
+"run.code.incomplete.manifestMissing" = "Das Backup war unvollständig — kein Manifest";
+"run.code.incomplete.manifestUnreadable" = "Das Manifest des Backups war nicht lesbar";
+"run.code.incomplete.statusPlistUnreadable" = "Die Statusdatei des Backups war nicht lesbar";
+"run.code.incomplete.metadataStillChanging" = "Das Backup wurde noch geschrieben";
+"run.code.incomplete.noCompletionDate" = "Das Backup hatte kein Abschlussdatum";
+"run.code.incomplete.watchedFileEmpty" = "Eine Backup-Datei war noch leer";
+"run.code.incomplete.stillSettling" = "Warten, bis sich das Backup beruhigt hat";
+
+"run.code.deferred.insufficientBattery" = "Wegen Akkustand verschoben — bitte Strom anschließen";
+
+"run.code.configuration.multipleCloudRootsNeedSelection" = "Mehrere Cloud-Ordner gefunden — bitte einen auswählen";
+"run.code.configuration.noCloudRootFound" = "Kein Cloud-Ordner gefunden";
+"run.code.configuration.configuredCloudRootMissing" = "Der gewählte Cloud-Ordner existiert nicht mehr";
+"run.code.configuration.backupRootMissing" = "Kein iPhone-Backup-Ordner auf diesem Mac";
+"run.code.configuration.backupRootUnreadable" = "Kein Zugriff auf den Backup-Ordner — Festplattenvollzugriff erforderlich";
+
+"run.code.failed.archiveToolFailed" = "Das Erstellen des Archivs ist fehlgeschlagen";
+"run.code.failed.archiveImplausiblySmall" = "Das Archiv war unplausibel klein und wurde verworfen";
+"run.code.failed.insufficientFreeSpace" = "Nicht genügend freier Speicherplatz";
+"run.code.failed.stagingUnavailable" = "Der Zwischenordner konnte nicht genutzt werden";
+"run.code.failed.finalMoveFailed" = "Das Archiv konnte nicht in den Cloud-Ordner verschoben werden";
+"run.code.failed.stateWriteFailed" = "Das Archiv wurde erstellt, konnte aber nicht vermerkt werden";
+"run.code.failed.archiveAlreadyExistsWithoutState" = "Für dieses Backup existiert bereits ein Archiv";
+
 /* Fehler der Automatik — jeweils konkret benannt, da jeder anders zu beheben ist */
 "automation.badLocation" = "Automatisches Archivieren kann von diesem Ort aus nicht eingerichtet werden.";
 "automation.concernTranslocated" = "macOS führt die App aus einer temporären Kopie aus. Bitte in den Programme-Ordner verschieben und von dort öffnen.";

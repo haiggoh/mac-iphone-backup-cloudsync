@@ -32,6 +32,16 @@ for path in glob.glob("Sources/**/*.swift", recursive=True):
     for m in re.finditer(r'\bL\(\s*"([^"]+)"', open(path).read()):
         used.add(m.group(1))
 
+# Key families built at runtime rather than written as literals, so the scan above
+# cannot see them. Without this they would be reported as unused for ever, which
+# devalues that warning — and the warning is load-bearing: it is how the missing
+# duplicate-replace UI was noticed.
+#
+# The trade is real and worth stating: a key under one of these prefixes is no longer
+# checked for being *reachable*. Keep the list short, and only for a family whose
+# members are enumerated in code (here, the `code` properties in ApplicationMode.swift).
+DYNAMIC_PREFIXES = ("run.code.",)
+
 tables = {}
 for path in sorted(glob.glob("Resources/*.lproj/Localizable.strings")):
     lang = path.split("/")[1].replace(".lproj", "")
@@ -84,7 +94,10 @@ for lang, table in sorted(tables.items()):
             print(f"FAIL [{lang}] {key}: placeholders {actual} do not match "
                   f"{reference} {expected}")
 
-unused = sorted(set(tables[reference]) - used)
+unused = sorted(
+    key for key in set(tables[reference]) - used
+    if not key.startswith(DYNAMIC_PREFIXES)
+)
 if unused:
     # A warning, not a failure: a key may be staged ahead of the code that uses it.
     print(f"\nnote: {len(unused)} key(s) defined but not referenced in code:")

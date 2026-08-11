@@ -93,16 +93,56 @@ enum Presenter {
     /// Uses only the *kind* of failure, never its interpolated detail: a path or an
     /// exit code that varies slightly between attempts would defeat suppression and
     /// notify every five minutes anyway.
-    static func signature(for failure: RunFailure) -> String {
-        switch failure {
-        case .archiveToolFailed: return "archiveToolFailed"
-        case .archiveImplausiblySmall: return "archiveImplausiblySmall"
-        case .insufficientFreeSpace: return "insufficientFreeSpace"
-        case .stagingUnavailable: return "stagingUnavailable"
-        case .finalMoveFailed: return "finalMoveFailed"
-        case .stateWriteFailed: return "stateWriteFailed"
-        case .archiveAlreadyExistsWithoutState: return "archiveAlreadyExistsWithoutState"
+    ///
+    /// `RunFailure.code` is exactly that, and both strings are persisted, so this
+    /// delegates rather than keeping a second hand-written copy of the same list —
+    /// two lists would eventually disagree and silently break suppression.
+    static func signature(for failure: RunFailure) -> String { failure.code }
+
+    /// A whole run outcome as one sentence, for the Automation section.
+    ///
+    /// Exhaustive with no `default:`, like the rest of this type: a new outcome in core
+    /// must stop this compiling rather than fall through to something stale. The
+    /// Automation section previously interpolated `String(describing:)` here, which is
+    /// how a raw Swift enum dump containing a home-folder path reached the UI.
+    static func text(for result: AutomaticRunResult) -> String {
+        switch result {
+        case .archived(let url):
+            return L("run.archived", url.lastPathComponent)
+        case .nothingToDo:
+            return L("run.nothingToDo")
+        case .alreadyRunning:
+            return L("run.alreadyRunning")
+        case .incompleteBackup(let reason):
+            return text(for: reason)
+        case .deferred(let reason):
+            return text(for: reason)
+        case .configurationRequired(let problem):
+            return text(for: problem)
+        case .failed(let failure):
+            return text(for: failure)
         }
+    }
+
+    /// The same thing for a *persisted* outcome, which is only a code.
+    ///
+    /// Deliberately payload-free — a stored code carries no path, count or duration, so
+    /// these read a little more generally than the live messages above. That is the
+    /// right trade: the alternative was showing the stored `String(describing:)`.
+    ///
+    /// Unknown or absent codes fall back to a neutral line rather than to the raw
+    /// summary. A record written by a future version must not leak internals into the
+    /// UI just because this build does not recognise it.
+    ///
+    /// Keys are built at runtime, so `Tools/check-localization.sh` cannot see them as
+    /// literals — it carries a matching `run.code.` prefix rule so these are not
+    /// reported as unused and the real unused-key signal stays trustworthy.
+    static func text(forRunCode code: String?) -> String {
+        guard let code else { return L("run.unknown") }
+        let key = "run.code.\(code)"
+        let localized = NSLocalizedString(key, bundle: .main, comment: "")
+        // NSLocalizedString echoes the key back when the table has no entry for it.
+        return localized == key ? L("run.unknown") : localized
     }
 
     /// LaunchAgent failures, named specifically. "Could not enable automation" would
