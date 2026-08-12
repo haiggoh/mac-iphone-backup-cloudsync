@@ -90,6 +90,13 @@
 "permissions.openSettings" = "Open Full Disk Access settings…";
 "permissions.recheck" = "Check again";
 
+/* The supplemental alert. Separate from the inline button above, which stays shorter
+   because it sits next to explanatory text the alert has to carry itself. */
+"permissions.alertTitle" = "Full Disk Access Required";
+"permissions.alertMessage" = "iPhone Backup needs Full Disk Access to read Apple MobileSync backups. Enable this installed copy under System Settings → Privacy & Security → Full Disk Access, then return to the app and check again.";
+"permissions.alertOpenSettings" = "Open Full Disk Access Settings";
+"permissions.alertNotNow" = "Not Now";
+
 /* Automation */
 "automation.title" = "Automatic archiving";
 "automation.stateOn" = "On";

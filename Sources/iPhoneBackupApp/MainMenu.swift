@@ -109,10 +109,26 @@ enum SystemSettingsLink {
     /// denies the read. An app that waits for a prompt that will never come leaves
     /// the user stuck, so the only reliable design is to detect the denial and take
     /// them there.
+    ///
+    /// Tries the pane directly, and falls back to opening System Settings itself.
+    ///
+    /// `NSWorkspace.open` returns whether it accepted the URL, which is worth checking:
+    /// the `Privacy_AllFiles` anchor is undocumented and has been renamed across releases,
+    /// so a future macOS may reject it. Landing the user in System Settings with a
+    /// sentence telling them where to go beats a button that visibly does nothing.
     static func openFullDiskAccess() {
-        let url = URL(
+        let pane = URL(
             string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")
-        guard let url else { return }
-        NSWorkspace.shared.open(url)
+        if let pane, NSWorkspace.shared.open(pane) { return }
+
+        // Same scheme with no anchor — System Settings, wherever it lives on this OS.
+        if let settings = URL(string: "x-apple.systempreferences:"),
+           NSWorkspace.shared.open(settings) {
+            return
+        }
+
+        // Last resort: the application bundle by path.
+        NSWorkspace.shared.open(
+            URL(fileURLWithPath: "/System/Applications/System Settings.app"))
     }
 }

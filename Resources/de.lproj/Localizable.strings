@@ -90,6 +90,13 @@
 "permissions.openSettings" = "Einstellungen für Festplattenvollzugriff öffnen…";
 "permissions.recheck" = "Erneut prüfen";
 
+/* Der zusätzliche Hinweisdialog. Bewusst getrennt von der Schaltfläche oben, die kürzer
+   bleibt, weil neben ihr der erklärende Text steht — im Dialog fehlt der. */
+"permissions.alertTitle" = "Festplattenvollzugriff erforderlich";
+"permissions.alertMessage" = "iPhone Backup benötigt Festplattenvollzugriff, um die MobileSync-Backups von Apple zu lesen. Bitte diese installierte Kopie unter Systemeinstellungen → Datenschutz & Sicherheit → Festplattenvollzugriff aktivieren und danach in der App erneut prüfen.";
+"permissions.alertOpenSettings" = "Einstellungen für Festplattenvollzugriff öffnen";
+"permissions.alertNotNow" = "Nicht jetzt";
+
 /* Automatik */
 "automation.title" = "Automatisch archivieren";
 "automation.stateOn" = "Ein";
