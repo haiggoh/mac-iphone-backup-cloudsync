@@ -7,7 +7,7 @@ import Foundation
 ///     SnapshotState => "finished"
 ///     BackupState   => "new"
 ///     Date          => 2026-08-05 15:22:34 +0000
-///     UUID          => 00000000-…
+///     UUID          => <a UUID; value redacted, it identifies a real backup>
 ///     IsFullBackup  => false
 ///     Version       => "3.3"
 ///

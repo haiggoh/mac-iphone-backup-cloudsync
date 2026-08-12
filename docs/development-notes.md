@@ -113,6 +113,18 @@ so that cannot recur: it is payload-free by construction, and
 `Tests/IPhoneBackupCoreTests/RunOutcomeCodeTests.swift` asserts no code can contain a
 path. Keep the two channels distinct: `code` for display, `summary` for bug reports.
 
+**Fixtures leak when they are "based on" real observations.** A test helper here was
+documented as reproducing "the state observed on the development machine". Someone
+duly pasted the observed values in, redacted the device UDID's tail to `AAAAAA`, and did
+not notice the `UUID` field sitting three lines below — which then shipped in a public
+repository, along with the real UUID's first eight characters in a doc comment nearby.
+Nothing about any assertion needed a real value; only the *shape* mattered.
+
+Two lessons, both cheap: fixtures get obviously-synthetic values, and partial redaction
+is worse than none because it looks finished. `Tools/check-no-leaks.sh` is the gate, and
+it is worth running against a fresh clone (`--clone`) rather than the working tree —
+the working tree can be clean while the published history is not.
+
 ## Environment
 
 **`/bin/bash` is 3.2** (no associative arrays) while a Homebrew bash 5.x is typically

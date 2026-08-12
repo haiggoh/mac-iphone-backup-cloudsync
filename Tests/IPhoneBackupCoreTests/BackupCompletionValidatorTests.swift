@@ -19,8 +19,15 @@ class TemporaryDirectoryTestCase: XCTestCase {
         try super.tearDownWithError()
     }
 
-    /// Builds a backup directory shaped like a real one. Defaults reproduce the
-    /// state observed on the development machine.
+    /// Builds a backup directory shaped like a real one.
+    ///
+    /// Every identifier here is **synthetic** and must stay that way. The shape is what
+    /// the tests need — a UDID-like directory name, a UUID-like field — and the value is
+    /// irrelevant to every assertion, so there is never a reason to paste a real one in.
+    /// An earlier version of this fixture did exactly that: it copied the values observed
+    /// on the development machine, redacted the device UDID's tail, and missed the `UUID`
+    /// field entirely, which then shipped in a public repository. Partial redaction is
+    /// how that happens. Use obviously-fake values instead.
     @discardableResult
     func makeBackup(
         named name: String = "00000000-000000000000FFFF",

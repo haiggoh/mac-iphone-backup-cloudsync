@@ -272,6 +272,7 @@ cloud folder; delete them yourself if you want them gone.
 ```sh
 ./Tools/test.sh                 # tests (needs Xcode — see CONTRIBUTING.md)
 ./Tools/check-localization.sh    # missing keys, language drift, placeholder mismatches
+./Tools/check-no-leaks.sh        # personal data that must not be published
 ./Tools/make-icon.sh             # only after editing Tools/render-icon.swift
 ./Tools/observe-backup.sh        # the diagnostic that produced the timings above
 ```

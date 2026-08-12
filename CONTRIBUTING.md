@@ -17,6 +17,7 @@ cd mac-iphone-backup-cloudsync
 
 ./Tools/test.sh             # the test suite
 ./Tools/check-localization.sh
+./Tools/check-no-leaks.sh   # personal data that must not be published
 ```
 
 **Use `./Tools/test.sh`, not `swift test`.** XCTest ships inside Xcode, not inside the
@@ -67,6 +68,12 @@ These are not style preferences; each one is there because the alternative loses
 - **Never log backup contents, device names, or full UDIDs.** Candidates expose
   `logDescription` for exactly this reason: someone pasting output into a public
   issue must not be pasting their device identifiers.
+- **Fixtures use synthetic identifiers, never observed ones.** Tests need the *shape* of
+  a UDID or UUID, never a real value. `./Tools/check-no-leaks.sh` enforces this, and it
+  exists because a real backup UUID once shipped in these tests — copied from the
+  development machine, with the device UDID's tail redacted and the UUID field missed.
+  Partial redaction is how that happens. If the gate reports a new placeholder of yours,
+  add it to the allowlist in that script with a reason.
 - **Changes to archiving, state or retention need tests.** Anything that could
   overwrite, truncate or forget an archive is the part of this project that matters.
 - **Shipped shell scripts stay bash 3.2-compatible** (no associative arrays).

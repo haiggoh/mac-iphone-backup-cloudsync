@@ -6,7 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- `Tools/check-no-leaks.sh`, which fails on personal data in tracked files — device
+  UDIDs, UUIDs, absolute home paths, email addresses and cloud folder names that embed an
+  account. Scans the working tree, or a fresh clone of the remote with `--clone`.
+
+### Fixed
+
+- Test fixtures no longer contain identifiers copied from a real machine. One was a
+  genuine backup `UUID` from the development machine's `Status.plist`, published verbatim;
+  a device UDID had only its tail redacted, leaving a real model prefix; and a doc comment
+  carried the same UUID truncated. All are synthetic now, and the gate above prevents a
+  recurrence.
 
 ## [1.0.0] — unreleased
 
