@@ -59,10 +59,16 @@ final class BackupViewModel: ObservableObject {
 
             switch outcome {
             case .failure(let problem):
+                await self.logDiscovery("cannot search: \(problem.code)")
                 await self.show(problem: problem)
 
             case .success(let result):
                 guard let picked = result.candidates.first else {
+                    // An empty folder and a backup still in progress look identical
+                    // from outside the process, so record which it was.
+                    await self.logDiscovery(
+                        result.rejections.first.map { "no candidate: \($0.logDescription)" }
+                            ?? "no candidate: nothing present")
                     await self.show(
                         headline: L("status.noBackupPresent"),
                         status: result.rejections.isEmpty
@@ -74,6 +80,7 @@ final class BackupViewModel: ObservableObject {
                     return
                 }
 
+                await self.logDiscovery("selected \(picked.logDescription)")
                 await self.adopt(candidate: picked, multipleDevices: result.hasMultipleDevices)
 
                 // du on a few hundred thousand files is slow, so it runs here rather
@@ -82,6 +89,24 @@ final class BackupViewModel: ObservableObject {
                 await self.adopt(sourceBytes: bytes)
             }
         }
+    }
+
+    /// Records what discovery decided, so a manual run can be confirmed from outside
+    /// the process.
+    ///
+    /// The automatic path reports its decisions this way already; the manual path
+    /// reported only to the window, on the reasoning that a human is looking at it.
+    /// That holds for the human and fails for everyone else: verifying the app could
+    /// read the backups at all meant inferring it from the *absence* of a permissions
+    /// alert, across repeated launches, because nothing positive was ever written.
+    ///
+    /// `.notice`, not `.debug`, per the level policy in `AppLogger`: this is a decision
+    /// someone may need to read after the fact, and `.debug` does not survive the
+    /// process. Once per discovery rather than per step, and `logDescription` rather
+    /// than the raw directory name so pasted output carries no device identifiers.
+    /// Prefixed, because the automatic path logs to this same category.
+    private func logDiscovery(_ decision: String) {
+        logger.log(.discovery).notice("manual: \(decision, privacy: .public)")
     }
 
     private func adopt(candidate: BackupCandidate, multipleDevices: Bool) {
