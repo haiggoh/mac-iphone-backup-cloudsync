@@ -78,6 +78,8 @@ enum Presenter {
             return L("error.stateWriteFailed", detail)
         case .archiveAlreadyExistsWithoutState(let path):
             return L("error.archiveExists", path)
+        case .enumerationFailed:
+            return L("error.enumerationFailed", 0, "")
         }
     }
 

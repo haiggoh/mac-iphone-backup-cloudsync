@@ -47,6 +47,19 @@ final class LaunchAgentManagerTests: TemporaryDirectoryTestCase {
 
     private func manager() -> LaunchAgentManager {
         fake = FakeProcessRunner()
+        // Force launchctl for testing to avoid SMAppService code signing issues
+        let env = ProcessInfo.processInfo.environment
+        var newEnv = env
+        newEnv["LAUNCH_AGENT_FORCE_LAUNCHCTL"] = "1"
+        // We can't modify ProcessInfo.environment directly, but we can set the env var
+        // before creating the manager. Since LaunchAgentManager checks the env var
+        // at initialization time, we need to set it before creating the manager.
+        // The forceLaunchctl is a static let that reads from environment at first access.
+        // We'll need to set the env var before the first access.
+        setenv("LAUNCH_AGENT_FORCE_LAUNCHCTL", "1", 1)
+        defer { unsetenv("LAUNCH_AGENT_FORCE_LAUNCHCTL") }
+
+        fake = FakeProcessRunner()
         return LaunchAgentManager(
             configuration: configuration(),
             fileManager: FakeHomeFileManager(fakeHome: root),
@@ -60,12 +73,28 @@ final class LaunchAgentManagerTests: TemporaryDirectoryTestCase {
         try FileManager.default.createDirectory(
             at: bundle.appendingPathComponent("Contents/MacOS"),
             withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(
+            at: bundle.appendingPathComponent("Contents/Library/LaunchAgents"),
+            withIntermediateDirectories: true)
         try PropertyListSerialization
             .data(fromPropertyList: ["CFBundleExecutable": "iPhoneBackup"],
                   format: .xml, options: 0)
             .write(to: bundle.appendingPathComponent("Contents/Info.plist"))
         try Data("binary".utf8)
             .write(to: bundle.appendingPathComponent("Contents/MacOS/iPhoneBackup"))
+        // Create LaunchAgent plist for SMAppService
+        let label = configuration().launchAgentLabel
+        let plist = [
+            "Label": configuration().launchAgentLabel,
+            "ProgramArguments": ["/fake/path/iPhoneBackup", ApplicationMode.automaticFlag],
+            "RunAtLoad": true,
+            "StartInterval": LaunchAgentManager.defaultStartInterval,
+            "ProcessType": "Background",
+            "LowPriorityIO": true,
+            "Nice": 5
+        ] as [String: Any]
+        let plistData = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
+        try plistData.write(to: bundle.appendingPathComponent("Contents/Library/LaunchAgents/\(configuration().launchAgentLabel).plist"), options: .atomic)
         return bundle
     }
 
@@ -107,13 +136,16 @@ final class LaunchAgentManagerTests: TemporaryDirectoryTestCase {
         XCTAssertTrue(site.concerns.contains { if case .translocated = $0 { return true }; return false })
     }
 
-    /// The trap that matters in practice: `swift build` deletes and recreates this
-    /// directory, so an agent pointing into it silently stops working.
-    func testBuildDirectoryIsRejectedAsVolatile() {
+    /// A build directory is no longer rejected — instead it resolves to a stable
+    /// location in Application Support so automation can work from development.
+    func testBuildDirectoryResolvesToSupportDirectory() {
         let site = LaunchAgentManager.inspectInstallation(bundleURL: URL(
             fileURLWithPath: "/Users/somebody/project/build/iPhone Backup.app"))
-        XCTAssertFalse(site.isSuitable)
-        XCTAssertTrue(site.concerns.contains { if case .volatileLocation = $0 { return true }; return false })
+        XCTAssertTrue(site.isSuitable, "Build directory should now be suitable via support dir")
+        XCTAssertFalse(site.concerns.contains { if case .volatileLocation = $0 { return true }; return false },
+                       "Should not have volatileLocation concern; should resolve to support dir")
+        XCTAssertTrue(site.executableURL.path.contains("Application Support"),
+                      "Executable URL should point to Application Support, got: \(site.executableURL.path)")
     }
 
     func testApplicationsFolderIsAccepted() throws {
@@ -123,20 +155,16 @@ final class LaunchAgentManagerTests: TemporaryDirectoryTestCase {
         XCTAssertEqual(site.executableURL.lastPathComponent, "iPhoneBackup")
     }
 
-    func testInstallRefusesAnUnsuitableLocation() throws {
+    func testInstallAllowsBuildDirectoryViaSupportDir() throws {
         let subject = manager()
         let bundle = try makeBundle(at: "build/iPhone Backup.app")
 
-        XCTAssertThrowsError(try subject.install(bundleURL: bundle)) { error in
-            guard let launchError = error as? LaunchAgentError,
-                  case .unsuitableInstallation(let concerns) = launchError else {
-                return XCTFail("expected unsuitableInstallation, got \(error)")
-            }
-            XCTAssertFalse(concerns.isEmpty)
-        }
-        // And it must not have touched launchd or written anything.
-        XCTAssertTrue(fake.invocations.isEmpty)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: subject.plistURL.path))
+        // Build directory is now allowed via support directory
+        let state = try subject.install(bundleURL: bundle)
+        XCTAssertEqual(state, .installedAndLoaded)
+
+        // Should have installed successfully
+        XCTAssertTrue(FileManager.default.fileExists(atPath: subject.plistURL.path))
     }
 
     // MARK: Install

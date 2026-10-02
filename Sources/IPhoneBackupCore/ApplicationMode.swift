@@ -178,6 +178,7 @@ public enum RunFailure: Equatable, Error {
     case finalMoveFailed(String, stagedArchivePath: String)
     case stateWriteFailed(String)
     case archiveAlreadyExistsWithoutState(path: String)
+    case enumerationFailed
 
     /// See `AutomaticRunResult.code`. Payload-free and part of the on-disk format.
     public var code: String {
@@ -189,6 +190,7 @@ public enum RunFailure: Equatable, Error {
         case .finalMoveFailed: return "finalMoveFailed"
         case .stateWriteFailed: return "stateWriteFailed"
         case .archiveAlreadyExistsWithoutState: return "archiveAlreadyExistsWithoutState"
+        case .enumerationFailed: return "enumerationFailed"
         }
     }
 }
