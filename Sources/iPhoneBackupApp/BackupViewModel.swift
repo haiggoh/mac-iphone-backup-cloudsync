@@ -85,7 +85,14 @@ final class BackupViewModel: ObservableObject {
 
                 // du on a few hundred thousand files is slow, so it runs here rather
                 // than blocking the click.
-                let bytes = self.archiver.sourceSizeBytes(of: picked.directoryURL)
+                let bytes: Int64
+                do {
+                    bytes = try self.archiver.sourceSizeBytes(of: picked.directoryURL)
+                } catch {
+                    logger.log(.automation).error("failed to measure source size: \(String(describing: error))")
+                    await self.adopt(sourceBytes: 0)
+                    return
+                }
                 await self.adopt(sourceBytes: bytes)
             }
         }
@@ -211,7 +218,7 @@ final class BackupViewModel: ObservableObject {
             let destination = destinationRoot
                 .appendingPathComponent(configuration.destinationSubdirectory)
 
-            let result = archiver.archive(
+            let result = await archiver.archive(
                 candidate: candidate,
                 archiveFilename: filename,
                 destinationFolder: destination,

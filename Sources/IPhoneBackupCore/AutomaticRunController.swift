@@ -60,6 +60,16 @@ public final class AutomaticRunController {
         }
 
         guard let candidate = discovery.newestUnprocessed(in: discovered, store: store) else {
+            // No unprocessed candidates - check if there are still-settling backups
+            // that the user should be aware of rather than saying "nothing to do"
+            if let settlingRejection = discovered.rejections.first(where: {
+                if case .stillSettling = $0.reason { return true }
+                return false
+            }) {
+                if case .stillSettling(let age, let required) = settlingRejection.reason {
+                    return .incompleteBackup(.stillSettling(newestAge: age, required: required))
+                }
+            }
             return .nothingToDo
         }
 
@@ -94,7 +104,7 @@ public final class AutomaticRunController {
     /// Wraps `perform()` so every exit path leaves a durable record, including the
     /// early ones. A `defer` rather than a call at each `return`, because the whole
     /// point is that no path can forget.
-    public func run() -> AutomaticRunResult {
+    public func run() async -> AutomaticRunResult {
         var outcome: AutomaticRunResult = .nothingToDo
         defer {
             do {
@@ -113,11 +123,11 @@ public final class AutomaticRunController {
                     "could not record the run outcome: \(String(describing: error))")
             }
         }
-        outcome = perform()
+        outcome = await perform()
         return outcome
     }
 
-    private func perform() -> AutomaticRunResult {
+    private func perform() async -> AutomaticRunResult {
         let automation = logger.log(.automation)
 
         // The lock comes first so two overlapping launches cannot both spend a
@@ -196,7 +206,13 @@ public final class AutomaticRunController {
 
         // MARK: Can we finish?
 
-        let sourceBytes = archiver.sourceSizeBytes(of: candidate.directoryURL)
+        let sourceBytes: Int64
+        do {
+            sourceBytes = try archiver.sourceSizeBytes(of: candidate.directoryURL)
+        } catch {
+            logger.log(.automation).error("failed to measure source size: \(String(describing: error))")
+            return .failed(.stagingUnavailable("could not measure source size: \(error)"))
+        }
 
         if case .insufficientBattery(let remaining, let needed) = powerMonitor.verdict(
             forSourceBytes: sourceBytes
@@ -218,15 +234,14 @@ public final class AutomaticRunController {
         )
 
         let outcome: ArchiveOutcome
-        switch archiver.archive(
+        let archiveResult = await archiver.archive(
             candidate: candidate,
             archiveFilename: filename,
             destinationFolder: destination,
             sourceBytes: sourceBytes,
-            // Unattended runs never overwrite. An existing file the state file does
-            // not know about may be the user's only copy.
             conflictPolicy: .fail
-        ) {
+        )
+        switch archiveResult {
         case .failure(let failure):
             logger.log(.archive).error("archive failed: \(String(describing: failure), privacy: .public)")
             return .failed(failure)

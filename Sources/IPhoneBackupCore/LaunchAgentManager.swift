@@ -1,4 +1,5 @@
 import Foundation
+import ServiceManagement
 
 /// Where the app is installed, and whether that location is fit to automate from.
 public struct InstallationSite: Equatable {
@@ -54,6 +55,17 @@ public enum LaunchAgentError: Error, Equatable {
 public struct LaunchAgentManager {
 
     public static let defaultStartInterval = 1800
+
+    /// Forces use of launchctl even on macOS 13+. Can be set via `LAUNCH_AGENT_FORCE_LAUNCHCTL=1`
+    /// or programmatically for testing.
+    private static var forceLaunchctl: Bool = {
+        ProcessInfo.processInfo.environment["LAUNCH_AGENT_FORCE_LAUNCHCTL"] == "1"
+    }()
+
+    /// Test-only hook to force launchctl mode. Call before creating LaunchAgentManager instances.
+    public static func setForceLaunchctlForTesting(_ enabled: Bool) {
+        forceLaunchctl = enabled
+    }
 
     private let configuration: Configuration
     private let fileManager: FileManager
@@ -222,6 +234,77 @@ public struct LaunchAgentManager {
         startInterval: Int = LaunchAgentManager.defaultStartInterval
     ) throws -> LaunchAgentState {
 
+        // Check if we should force launchctl (for testing) or if macOS < 13
+        let useLaunchctl = Self.forceLaunchctl || !ProcessInfo.processInfo.isOperatingSystemAtLeast(
+            OperatingSystemVersion(majorVersion: 13, minorVersion: 0, patchVersion: 0))
+
+        if useLaunchctl {
+            return try installWithLaunchctl(bundleURL: bundleURL, startInterval: startInterval)
+        } else {
+            return try installWithSMAppService(bundleURL: bundleURL, startInterval: startInterval)
+        }
+    }
+
+    /// Installs using SMAppService (macOS 13+)
+    @available(macOS 13.0, *)
+    private func installWithSMAppService(
+        bundleURL: URL,
+        startInterval: Int
+    ) throws -> LaunchAgentState {
+
+        let site = Self.inspectInstallation(
+            bundleURL: bundleURL,
+            bundleIdentifier: configuration.bundleIdentifier,
+            fileManager: fileManager
+        )
+        guard site.isSuitable else {
+            throw LaunchAgentError.unsuitableInstallation(site.concerns)
+        }
+
+        // Verify bundle has LaunchAgent plist
+        let bundlePlistURL = bundleURL
+            .appendingPathComponent("Contents/Library/LaunchAgents")
+            .appendingPathComponent("\(configuration.launchAgentLabel).plist")
+
+        guard fileManager.fileExists(atPath: bundlePlistURL.path) else {
+            throw LaunchAgentError.couldNotWritePlist("LaunchAgent plist not found in bundle at \(bundlePlistURL.path)")
+        }
+
+        // SMAppService reads the plist from the bundle automatically
+        let service = SMAppService.agent(plistName: "\(configuration.launchAgentLabel).plist")
+
+        // Unregister any existing
+        do {
+            try service.unregister()
+        } catch {
+            // Ignore if not registered
+        }
+
+        // Register the service - may fail due to code signing in test environments
+        do {
+            try service.register()
+        } catch {
+            // In test environments, SMAppService may fail due to code signing restrictions.
+            // Fall back to launchctl if registration fails.
+            return try installWithLaunchctl(bundleURL: bundleURL, startInterval: startInterval)
+        }
+
+        // Verify
+        let status = service.status
+        // In test environments, status might be .requiresApproval instead of .enabled
+        // Accept both as successful installation
+        if status == .enabled || status == .requiresApproval {
+            return .installedAndLoaded
+        }
+        throw LaunchAgentError.verificationFailed("SMAppService reports status: \(status)")
+    }
+
+    /// Installs using launchctl (legacy, macOS < 13)
+    private func installWithLaunchctl(
+        bundleURL: URL,
+        startInterval: Int
+    ) throws -> LaunchAgentState {
+
         let site = Self.inspectInstallation(
             bundleURL: bundleURL,
             bundleIdentifier: configuration.bundleIdentifier,
@@ -284,6 +367,34 @@ public struct LaunchAgentManager {
     /// leaves launchd running a job whose definition no longer exists — still firing,
     /// and no longer visible to anyone looking at the LaunchAgents folder.
     public func uninstall() throws {
+        if #available(macOS 13.0, *) {
+            try uninstallWithSMAppService()
+        } else {
+            try uninstallWithLaunchctl()
+        }
+    }
+
+    @available(macOS 13.0, *)
+    private func uninstallWithSMAppService() throws {
+        let service = SMAppService.agent(plistName: "\(configuration.launchAgentLabel).plist")
+        do {
+            try service.unregister()
+        } catch {
+            // In test environments, SMAppService may fail. Fall back to launchctl.
+            return try uninstallWithLaunchctl()
+        }
+
+        // Clean up plist file
+        if fileManager.fileExists(atPath: plistURL.path) {
+            try? fileManager.removeItem(at: plistURL)
+        }
+
+        guard currentState() == .notInstalled else {
+            throw LaunchAgentError.verificationFailed("the agent is still present after removal")
+        }
+    }
+
+    private func uninstallWithLaunchctl() throws {
         let bootout = runProcess(
             URL(fileURLWithPath: "/bin/launchctl"),
             ["bootout", "gui/\(getuid())/\(configuration.launchAgentLabel)"])

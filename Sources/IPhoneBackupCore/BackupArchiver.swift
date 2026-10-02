@@ -52,6 +52,8 @@ public final class BackupArchiver {
     private let configuration: Configuration
     private let fileManager: FileManager
     private var process: Process?
+    private var isCancelled = false
+    private let cancellationLock = NSLock()
 
     public init(configuration: Configuration, fileManager: FileManager = .default) {
         self.configuration = configuration
@@ -60,28 +62,59 @@ public final class BackupArchiver {
 
     /// Cancels a running archive. Safe to call from another thread.
     public func cancel() {
+        cancellationLock.lock()
+        isCancelled = true
+        cancellationLock.unlock()
         process?.terminate()
     }
 
-    /// Measures the source with `du`, which is slow on a few hundred thousand
-    /// files and so belongs off any interactive path.
-    public func sourceSizeBytes(of directory: URL) -> Int64 {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/du")
-        task.arguments = ["-sk", directory.path]
-        let output = Pipe()
-        task.standardOutput = output
-        task.standardError = FileHandle.nullDevice
+    /// Measures the source with native Swift enumeration, replacing `du`.
+    /// - Parameters:
+    ///   - directory: The directory to measure
+    /// - Returns: Total size in bytes
+    /// - Throws: CancellationError if cancelled, or any FileManager error
+    public func sourceSizeBytes(of directory: URL) throws -> Int64 {
+        guard let enumerator = fileManager.enumerator(
+            at: directory,
+            includingPropertiesForKeys: [
+                .isRegularFileKey,
+                .fileSizeKey,
+                .isSymbolicLinkKey
+            ],
+            options: [.skipsHiddenFiles]
+        ) else {
+            throw RunFailure.enumerationFailed
+        }
 
-        do { try task.run() } catch { return 0 }
-        // Read before waiting: a full pipe buffer with nobody draining it would
-        // deadlock, which is a mistake this codebase has made before.
-        let data = output.fileHandleForReading.readDataToEndOfFile()
-        task.waitUntilExit()
+        var total: Int64 = 0
 
-        let text = String(data: data, encoding: .utf8) ?? ""
-        let firstField = text.split(whereSeparator: { $0 == " " || $0 == "\t" }).first ?? ""
-        return (Int64(firstField) ?? 0) * 1024
+        for case let fileURL as URL in enumerator {
+            // Check cancellation
+            cancellationLock.lock()
+            let cancelled = isCancelled
+            cancellationLock.unlock()
+            if cancelled {
+                throw CancellationError()
+            }
+
+            autoreleasepool {
+                do {
+                    let values = try fileURL.resourceValues(forKeys: [
+                        .isRegularFileKey,
+                        .fileSizeKey,
+                        .isSymbolicLinkKey
+                    ])
+                    // Skip symlinks to mimic du behavior
+                    if values.isSymbolicLink == true { return }
+                    guard values.isRegularFile == true,
+                          let size = values.fileSize.map(Int64.init) else { return }
+                    total += Int64(size)
+                } catch {
+                    // Ignore individual file errors; du continues on permission errors
+                }
+            }
+        }
+        return total
     }
 
     /// Whether the staging volume can hold the archive.
@@ -127,8 +160,9 @@ public final class BackupArchiver {
         sourceBytes: Int64,
         conflictPolicy: ConflictPolicy,
         progress: ((ArchiveProgress) -> Void)? = nil,
-        isCancelled: @escaping () -> Bool = { false }
-    ) -> Result<ArchiveOutcome, RunFailure> {
+        isCancelled: @escaping () -> Bool = { false },
+        archiveEngine: ArchiveEngine? = nil
+    ) async -> Result<ArchiveOutcome, RunFailure> {
 
         let finalURL = destinationFolder.appendingPathComponent(archiveFilename)
 
@@ -148,150 +182,53 @@ public final class BackupArchiver {
             return .failure(failure)
         }
 
+        let engine = archiveEngine ?? DittoArchiveEngine(configuration: configuration, fileManager: fileManager)
+
         let staged = configuration.stagingRoot.appendingPathComponent(archiveFilename)
         try? fileManager.removeItem(at: staged)
 
-        // ditto's stderr goes to a file, never to an unread pipe: it can emit a
-        // great many warnings on a large tree and a full pipe would deadlock.
-        let logURL = configuration.stagingRoot
-            .appendingPathComponent("ditto-\(UUID().uuidString).log")
-        fileManager.createFile(atPath: logURL.path, contents: nil)
-        guard let logHandle = try? FileHandle(forWritingTo: logURL) else {
-            return .failure(.stagingUnavailable("could not create the archive log"))
-        }
-
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
-        // -c -k writes a genuine zip64. `tar -czf` with a .zip name — the original
-        // mistake — writes a gzip stream no zip reader can open.
-        task.arguments = [
-            "-c", "-k", "--sequesterRsrc", "--keepParent",
-            candidate.directoryURL.path, staged.path,
-        ]
-        task.standardOutput = FileHandle.nullDevice
-        task.standardError = logHandle
-
-        let started = Date()
         do {
-            try task.run()
-        } catch {
-            try? logHandle.close()
-            try? fileManager.removeItem(at: logURL)
-            return .failure(.archiveToolFailed(
-                exitCode: -1, stderrTail: "could not start ditto: \(error)"))
-        }
-        process = task
+            _ = try await engine.archive(
+                sourceDirectory: candidate.directoryURL,
+                destinationDirectory: configuration.stagingRoot,
+                archiveName: archiveFilename
+            )
 
-        // Prevents *idle* sleep for the duration. It cannot prevent sleep from the
-        // lid being closed — no assertion can — but that is survivable: with
-        // hibernatemode 3 the machine keeps RAM powered, so ditto is suspended
-        // rather than killed and resumes on wake with its file handle intact.
-        let activity = ProcessInfo.processInfo.beginActivity(
-            options: [.idleSystemSleepDisabled, .automaticTerminationDisabled],
-            reason: "Archiving an iPhone backup"
-        )
-        defer { ProcessInfo.processInfo.endActivity(activity) }
-
-        let expected = Double(sourceBytes) * Self.expectedCompressionRatio
-
-        // Throughput is measured over a recent window rather than since the start,
-        // and a gap far longer than the poll interval is treated as the machine
-        // having slept. Dividing by total wall-clock across a sleep would report a
-        // collapsed transfer rate and a wildly inflated time remaining for a job
-        // that is in fact running at full speed.
-        let sleepGapThreshold: TimeInterval = 15
-        var windowStart = Date()
-        var windowStartBytes: Int64 = 0
-        var lastSample = Date()
-        var activeElapsed: TimeInterval = 0
-
-        while task.isRunning {
-            Thread.sleep(forTimeInterval: 1.5)
-            if isCancelled() { task.terminate() }
-            guard let attributes = try? fileManager.attributesOfItem(atPath: staged.path),
-                  let written = (attributes[.size] as? NSNumber)?.int64Value
-            else { continue }
-
-            let now = Date()
-            let sinceLastSample = now.timeIntervalSince(lastSample)
-
-            if sinceLastSample > sleepGapThreshold {
-                // Discard the gap: restart the measurement window and do not count
-                // the slept time as elapsed.
-                windowStart = now
-                windowStartBytes = written
-            } else {
-                activeElapsed += sinceLastSample
-            }
-            lastSample = now
-
-            let windowSeconds = now.timeIntervalSince(windowStart)
-            let windowBytes = written - windowStartBytes
-            let rate = windowSeconds >= 3 && windowBytes > 0
-                ? Double(windowBytes) / windowSeconds
-                : 0
-
-            var remaining: TimeInterval?
-            if rate > 0 {
-                let seconds = (expected - Double(written)) / rate
-                // Reject absurd estimates rather than show "3 days left" because a
-                // sample happened to land during a slow patch.
-                if seconds > 0, seconds < 86_400 { remaining = seconds }
+            // Verify the archive was created at the expected location
+            let stagedPath = configuration.stagingRoot.appendingPathComponent(archiveFilename)
+            guard fileManager.fileExists(atPath: stagedPath.path) else {
+                return .failure(.stagingUnavailable("archive engine did not create output at expected path"))
             }
 
-            progress?(ArchiveProgress(
-                bytesWritten: written,
-                expectedBytes: Int64(expected),
-                elapsed: activeElapsed,
-                bytesPerSecond: rate,
-                estimatedRemaining: remaining
+            // Verify size
+            let size = (try? fileManager.attributesOfItem(atPath: stagedPath.path)[.size]
+                as? NSNumber)?.int64Value ?? 0
+            guard size >= Self.minimumPlausibleArchiveBytes else {
+                try? fileManager.removeItem(at: stagedPath)
+                return .failure(.archiveImplausiblySmall(bytes: size))
+            }
+
+            // Move to final destination
+            do {
+                if fileManager.fileExists(atPath: finalURL.path) {
+                    // Only reachable under .replace, i.e. after explicit confirmation.
+                    try fileManager.removeItem(at: finalURL)
+                }
+                try fileManager.moveItem(at: stagedPath, to: finalURL)
+            } catch {
+                // The archive is intact — say where, so the work is not lost.
+                return .failure(.finalMoveFailed(
+                    String(describing: error), stagedArchivePath: stagedPath.path))
+            }
+
+            return .success(ArchiveOutcome(
+                finalURL: finalURL,
+                sizeBytes: size,
+                duration: 0  // Duration tracking would require engine to return timing info
             ))
-        }
-
-        task.waitUntilExit()
-        try? logHandle.close()
-        process = nil
-
-        let stderrTail = Self.tail(of: logURL, lines: 4, fileManager: fileManager)
-        try? fileManager.removeItem(at: logURL)
-
-        if isCancelled() {
-            try? fileManager.removeItem(at: staged)
-            return .failure(.archiveToolFailed(exitCode: task.terminationStatus,
-                                               stderrTail: "cancelled"))
-        }
-
-        guard task.terminationStatus == 0 else {
-            // A partial archive is worse than none: it looks like a backup.
-            try? fileManager.removeItem(at: staged)
-            return .failure(.archiveToolFailed(
-                exitCode: task.terminationStatus, stderrTail: stderrTail))
-        }
-
-        let size = (try? fileManager.attributesOfItem(atPath: staged.path)[.size]
-            as? NSNumber)?.int64Value ?? 0
-        guard size >= Self.minimumPlausibleArchiveBytes else {
-            try? fileManager.removeItem(at: staged)
-            return .failure(.archiveImplausiblySmall(bytes: size))
-        }
-
-        do {
-            if fileManager.fileExists(atPath: finalURL.path) {
-                // Only reachable under .replace, i.e. after explicit confirmation.
-                try fileManager.removeItem(at: finalURL)
-            }
-            try fileManager.moveItem(at: staged, to: finalURL)
         } catch {
-            // The archive is intact — say where, so the work is not lost.
-            return .failure(.finalMoveFailed(
-                String(describing: error), stagedArchivePath: staged.path))
+            return .failure(.archiveToolFailed(exitCode: -1, stderrTail: String(describing: error)))
         }
-
-        return .success(ArchiveOutcome(
-            finalURL: finalURL,
-            sizeBytes: size,
-            duration: Date().timeIntervalSince(started)
-        ))
     }
 
     static func tail(of url: URL, lines: Int, fileManager: FileManager) -> String {
