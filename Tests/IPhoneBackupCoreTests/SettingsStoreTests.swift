@@ -30,7 +30,7 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(settings.archivesToKeep, 3)
         XCTAssertEqual(settings.minimumSettleAge, 900)
         XCTAssertEqual(settings.automationEnabled, false)
-        XCTAssertEqual(settings.automationIntervalSeconds, 300)
+        XCTAssertEqual(settings.automationIntervalSeconds, 1800)
     }
 
     func testLoadInvalidJSONReturnsDefaultsAndPreservesFile() throws {
@@ -54,7 +54,7 @@ final class SettingsStoreTests: XCTestCase {
         settings.archivesToKeep = 10
         settings.minimumSettleAge = 1200
         settings.automationEnabled = true
-        settings.automationIntervalSeconds = 600
+        settings.automationIntervalSeconds = 1800
 
         try store.save(settings)
         let loaded = store.load()
@@ -65,7 +65,7 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(loaded.archivesToKeep, 10)
         XCTAssertEqual(loaded.minimumSettleAge, 1200)
         XCTAssertEqual(loaded.automationEnabled, true)
-        XCTAssertEqual(loaded.automationIntervalSeconds, 600)
+        XCTAssertEqual(loaded.automationIntervalSeconds, 1800)
     }
 
     func testSaveSetsPermissionsTo600() throws {
@@ -123,13 +123,13 @@ final class SettingsStoreTests: XCTestCase {
     func testValidatedClampsAutomationIntervalSeconds() throws {
         var settings = Settings()
         settings.automationIntervalSeconds = 1
-        XCTAssertEqual(settings.validated().automationIntervalSeconds, 60)
+        XCTAssertEqual(settings.validated().automationIntervalSeconds, 900)
 
         settings.automationIntervalSeconds = 999999
         XCTAssertEqual(settings.validated().automationIntervalSeconds, 86400)
 
-        settings.automationIntervalSeconds = 300
-        XCTAssertEqual(settings.validated().automationIntervalSeconds, 300)
+        settings.automationIntervalSeconds = 1800
+        XCTAssertEqual(settings.validated().automationIntervalSeconds, 1800)
     }
 
     func testValidatedDestinationSubdirectory() throws {

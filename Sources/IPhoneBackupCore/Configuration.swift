@@ -57,7 +57,8 @@ public struct Configuration {
     public static let defaultMinimumSettleAge: TimeInterval = 900
     /// Archives to keep before the app starts warning. It never deletes.
     public static let defaultArchivesToKeep = 3
-    public static let defaultPollInterval: TimeInterval = 300
+    public static let defaultPollInterval: TimeInterval = 1800
+    public static let minimumPollInterval: TimeInterval = 900
 
     /// Only used when `Bundle.main.bundleIdentifier` is nil, which happens under
     /// `swift test` because tests are not running inside an app bundle. The real

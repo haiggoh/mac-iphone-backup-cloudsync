@@ -53,7 +53,7 @@ public enum LaunchAgentError: Error, Equatable {
 /// which is what actually decides readiness.
 public struct LaunchAgentManager {
 
-    public static let defaultStartInterval = 300
+    public static let defaultStartInterval = 1800
 
     private let configuration: Configuration
     private let fileManager: FileManager
@@ -82,7 +82,11 @@ public struct LaunchAgentManager {
     /// The path is derived from the running bundle rather than hardcoded, which is
     /// what makes the installed plist correct on any machine without the repository
     /// containing anyone's home directory.
-    public static func inspectInstallation(bundleURL: URL) -> InstallationSite {
+    public static func inspectInstallation(
+        bundleURL: URL,
+        bundleIdentifier: String? = Bundle.main.bundleIdentifier,
+        fileManager: FileManager = .default
+    ) -> InstallationSite {
         var concerns: [InstallationConcern] = []
         let path = bundleURL.path
 
@@ -98,16 +102,32 @@ public struct LaunchAgentManager {
 
         // A build directory is the trap that matters in practice: it is the copy a
         // developer runs, and `swift build` deletes and recreates it.
+        // Instead of rejecting it, we resolve to a stable location in Application Support.
         let volatileMarkers = ["/build/", "/.build/", "/Downloads/", "/tmp/", "/private/tmp/"]
-        if volatileMarkers.contains(where: { path.contains($0) }) {
-            concerns.append(.volatileLocation(path: path))
+        let isVolatile = volatileMarkers.contains(where: { path.contains($0) })
+
+        // Resolve stable executable URL: for volatile locations, point to the
+        // Application Support directory where the app should copy itself.
+        let executableName = bundleExecutableName(in: bundleURL)
+        let executableURL: URL
+        if isVolatile {
+            // Resolve to Application Support directory where the app should copy itself
+            let supportDir = fileManager.homeDirectoryForCurrentUser
+                .appendingPathComponent("Library/Application Support")
+            let bundleID = bundleIdentifier ?? Configuration.fallbackBundleIdentifier
+            executableURL = supportDir
+                .appendingPathComponent(bundleID)
+                .appendingPathComponent("InstalledApp/Contents/MacOS")
+                .appendingPathComponent(executableName)
+        } else {
+            executableURL = bundleURL
+                .appendingPathComponent("Contents/MacOS")
+                .appendingPathComponent(executableName)
         }
 
         return InstallationSite(
             bundleURL: bundleURL,
-            executableURL: bundleURL
-                .appendingPathComponent("Contents/MacOS")
-                .appendingPathComponent(bundleExecutableName(in: bundleURL)),
+            executableURL: executableURL,
             concerns: concerns
         )
     }
@@ -195,7 +215,11 @@ public struct LaunchAgentManager {
         startInterval: Int = LaunchAgentManager.defaultStartInterval
     ) throws -> LaunchAgentState {
 
-        let site = Self.inspectInstallation(bundleURL: bundleURL)
+        let site = Self.inspectInstallation(
+            bundleURL: bundleURL,
+            bundleIdentifier: configuration.bundleIdentifier,
+            fileManager: fileManager
+        )
         guard site.isSuitable else {
             throw LaunchAgentError.unsuitableInstallation(site.concerns)
         }

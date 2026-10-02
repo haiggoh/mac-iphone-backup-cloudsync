@@ -78,9 +78,11 @@ public struct Settings: Codable, Equatable {
         copy.archivesToKeep = max(0, min(archivesToKeep, 100))
         // 60 s floor: below the quiet period the gate stops meaning anything.
         copy.minimumSettleAge = max(60, min(minimumSettleAge, 24 * 60 * 60))
-        // launchd treats very small intervals harshly, and anything under a minute
-        // would poll far more often than a backup could possibly complete.
-        copy.automationIntervalSeconds = max(60, min(automationIntervalSeconds, 24 * 60 * 60))
+        // launchd treats very small intervals harshly. A backup takes 10-20 min, so
+        // polling faster than 15 min is wasteful; 5 min default was too aggressive.
+        let minInterval = Int(Configuration.minimumPollInterval)
+        copy.automationIntervalSeconds = max(minInterval,
+                                               min(automationIntervalSeconds, 24 * 60 * 60))
         if copy.destinationSubdirectory.trimmingCharacters(in: .whitespaces).isEmpty {
             copy.destinationSubdirectory = Configuration.defaultDestinationSubdirectory
         }
