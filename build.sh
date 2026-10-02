@@ -31,6 +31,13 @@ if [[ ! -x "$BINARY" ]]; then
 fi
 
 echo "==> Cleaning the bundle"
+# Ghost task cleanup: if an old version is installed, ask it to remove its automation
+# before we delete the bundle. This prevents launchd database corruption from a
+# stale agent pointing to a deleted binary.
+APP_INSTALLED="$HOME/Applications/$APP_NAME.app/Contents/MacOS/$BIN_NAME"
+if [ -x "$APP_INSTALLED" ]; then
+    "$APP_INSTALLED" --remove-automation || true
+fi
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 

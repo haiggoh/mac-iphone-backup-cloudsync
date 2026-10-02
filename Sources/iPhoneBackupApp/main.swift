@@ -32,7 +32,7 @@ switch mode {
 case .automatic:
     // No NSApplication, no activation policy, no window. The process does its work
     // and exits, which is what launchd expects.
-    let result = makeController().run()
+    let result = await makeController().run()
 
     let automation = logger.log(.automation)
     let description = String(describing: result)
@@ -51,7 +51,7 @@ case .automatic:
 case .checkOnly:
     // A diagnostic for a human at a terminal: says what an unattended run would do
     // right now, changes nothing, and does not block on the quiet period.
-    let result = makeController().check()
+    let result = await makeController().check()
     print(String(describing: result))
     // The state file first, because it is the channel that actually works. `log show`
     // needs administrator rights and otherwise fails with "Could not open local log
