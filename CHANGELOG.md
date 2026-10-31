@@ -4,9 +4,12 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims at
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0] — 2026-10-31
 
 ### Added
+
+- First tagged release (v1.0.0) with a prebuilt, ad-hoc-signed `iPhone Backup.app` asset, and a
+  Homebrew formula (`mac-iphone-backup-cloudsync`) in `haiggoh/homebrew-tap`.
 
 - `Tools/check-no-leaks.sh`, which fails on personal data in tracked files — device
   UDIDs, UUIDs, absolute home paths, email addresses and cloud folder names that embed an
