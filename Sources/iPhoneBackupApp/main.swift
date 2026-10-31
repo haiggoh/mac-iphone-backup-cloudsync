@@ -37,9 +37,9 @@ case .automatic:
     let automation = logger.log(.automation)
     let description = String(describing: result)
     if result.isSuccess {
-        automation.notice("automatic run finished: \(description, privacy: .public)")
+        automation.notice("📱 automatic run finished: \(description, privacy: .public)")
     } else {
-        automation.error("automatic run failed: \(description, privacy: .public)")
+        automation.error("📱 automatic run failed: \(description, privacy: .public)")
     }
 
     // Notifications are deliberately not sent from here. Posting one needs a running

@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — credit-moment mark 📱 (emoji branding rollout, Task 20)
+
+- The automation log lines now lead with 📱 (`📱 automatic run finished: …` /
+  `📱 automatic run failed: …`) — the log banner is the credit moment for unattended
+  runs. README h1 is `# 📱 iPhone Backup → Cloud`. App UI out of scope. Pinned by
+  Tests/IPhoneBackupCoreTests/BrandingTests.swift. No app-version bump here: this repo
+  versions via Info.plist at release time, not per commit.
+
 ### Added
 
 - `Tools/check-no-leaks.sh`, which fails on personal data in tracked files — device

@@ -1,4 +1,4 @@
-# iPhone Backup → Cloud
+# 📱 iPhone Backup → Cloud
 
 A small macOS app that finds your newest local iPhone backup, packs it into a real
 `.zip`, and moves it into a cloud-synced folder — optionally on its own, every few
