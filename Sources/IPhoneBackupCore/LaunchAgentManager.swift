@@ -105,6 +105,13 @@ public struct LaunchAgentManager {
         // Instead of rejecting it, we resolve to a stable location in Application Support.
         let volatileMarkers = ["/build/", "/.build/", "/Downloads/", "/tmp/", "/private/tmp/"]
         let isVolatile = volatileMarkers.contains(where: { path.contains($0) })
+        // Reject, don't resolve: the AppSupport "InstalledApp" copy this branch pointed at
+        // is never written by anything, so a resolved plist would reference a nonexistent
+        // executable. The tests pin the reject contract (restored 2026-10-31 after commit
+        // 699433e dropped the concern without updating them).
+        if isVolatile {
+            concerns.append(.volatileLocation(path: path))
+        }
 
         // Resolve stable executable URL: for volatile locations, point to the
         // Application Support directory where the app should copy itself.

@@ -59,17 +59,18 @@ final class LaunchAgentManagerAutomationLocationTests: XCTestCase {
             <key>CFBundleIdentifier</key><string>test.iphonebackup</string>
         </dict></plist>
         """
-        try infoPlist.write(to: buildDir.appendingPathComponent("Contents/Info.plist"), atomically: true, encoding: .utf8)
+        try infoPlist.write(to: buildDir.appendingPathComponent("Contents/Info.plist"),
+                            atomically: true, encoding: .utf8)
 
         let site = LaunchAgentManager.inspectInstallation(bundleURL: buildDir)
 
-        // Should NOT reject as volatileLocation - instead resolve to support dir
-        XCTAssertFalse(site.concerns.contains { if case .volatileLocation = $0 { return true }; return false },
-                       "Build directory should not be rejected as volatile; should use support dir instead")
-
-        // The executable URL should point to the support directory, not the build dir
-        XCTAssertTrue(site.executableURL.path.contains("Application Support") || site.executableURL.path.contains("Library"),
-                      "Executable URL should point to stable support directory, got: \(site.executableURL.path)")
+        // 2026-10-31 ruling: the support-dir resolve was never completed (the specced
+        // ensureStableInstallation self-copy was never implemented — a resolved plist would
+        // point at a nonexistent executable), so the reject contract wins and this test
+        // asserts it, matching LaunchAgentManagerTests.testBuildDirectoryIsRejectedAsVolatile.
+        XCTAssertTrue(site.concerns.contains { if case .volatileLocation = $0 { return true }; return false },
+                      "Build directory must be rejected as volatile (support-dir copy is not implemented)")
+        XCTAssertFalse(site.isSuitable, "a volatile location is never suitable")
     }
 
     func testAutomationUsesSupportDirExecutable() throws {
@@ -88,11 +89,14 @@ final class LaunchAgentManagerAutomationLocationTests: XCTestCase {
             <key>CFBundleIdentifier</key><string>test.iphonebackup</string>
         </dict></plist>
         """
-        try infoPlist.write(to: buildDir.appendingPathComponent("Contents/Info.plist"), atomically: true, encoding: .utf8)
+        try infoPlist.write(to: buildDir.appendingPathComponent("Contents/Info.plist"),
+                            atomically: true, encoding: .utf8)
 
         let site = LaunchAgentManager.inspectInstallation(bundleURL: buildDir)
 
-        XCTAssertTrue(site.executableURL.path.contains("Application Support"),
-                      "Executable URL should point to Application Support, got: \(site.executableURL.path)")
+        // Same ruling as above: volatile locations are rejected, not resolved — the
+        // Application Support "InstalledApp" copy nothing writes.
+        XCTAssertFalse(site.isSuitable, "build-dir install must be refused")
+        XCTAssertTrue(site.concerns.contains { if case .volatileLocation = $0 { return true }; return false })
     }
 }

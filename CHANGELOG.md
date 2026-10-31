@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed — LaunchAgentManager volatile-location contract (2026-10-31)
+
+- `inspectInstallation` again reports `.volatileLocation` for build/tmp/Downloads dirs:
+  commit 699433e resolved them to an Application Support "InstalledApp" path whose
+  self-copy (`ensureStableInstallation`, specced in the 2026-10-02 plan) was never
+  implemented, leaving the older reject-tests failing (5 asserts). The two
+  AutomationLocation tests that encoded the unimplemented resolve now assert the reject
+  contract. Full suite 123/123 (mutation-checked: concern removed -> 5 failures).
+
 ### Changed — credit-moment mark 📱 (emoji branding rollout, Task 20)
 
 - The automation log lines now lead with 📱 (`📱 automatic run finished: …` /
