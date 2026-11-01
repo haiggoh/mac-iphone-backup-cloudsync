@@ -14,7 +14,6 @@
 "status.determiningSize" = "Ermittle Größe …";
 "status.readyToArchive" = "%@ — bereit zum Archivieren.";
 "status.creatingArchive" = "Archiv wird erstellt …";
-"status.movingToCloud" = "Verschiebe Archiv nach Cloud-Ordner …";
 "status.cancelling" = "Wird abgebrochen …";
 "status.cancelled" = "Abgebrochen — unvollständiges Archiv wurde gelöscht.";
 "status.finished" = "Fertig — %@ in %@. Der Cloud-Ordner synchronisiert jetzt.";
@@ -22,7 +21,6 @@
 "status.remaining" = "noch ca. %@";
 
 /* Errors */
-"error.noCloudFolder" = "Cloud-Ordner nicht gefunden.";
 "error.targetFolderFailed" = "Zielordner konnte nicht erstellt werden: %@";
 "error.insufficientSpace" = "Zu wenig freier Speicher: %@ frei, benötigt werden ca. %@.";
 "error.archiveToolFailed" = "ditto ist mit Code %lld fehlgeschlagen.";

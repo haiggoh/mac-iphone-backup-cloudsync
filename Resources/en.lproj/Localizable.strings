@@ -14,7 +14,6 @@
 "status.determiningSize" = "Determining size…";
 "status.readyToArchive" = "%@ — ready to archive.";
 "status.creatingArchive" = "Creating archive…";
-"status.movingToCloud" = "Moving archive to cloud folder…";
 "status.cancelling" = "Cancelling…";
 "status.cancelled" = "Cancelled — incomplete archive deleted.";
 "status.finished" = "Done — %@ in %@. Uploading to cloud folder now.";
@@ -22,7 +21,6 @@
 "status.remaining" = "approx. %@ remaining";
 
 /* Errors */
-"error.noCloudFolder" = "Cloud folder not found.";
 "error.targetFolderFailed" = "Could not create target folder: %@";
 "error.insufficientSpace" = "Insufficient free space: %@ free, approx. %@ required.";
 "error.archiveToolFailed" = "ditto failed with code %lld.";
