@@ -4,6 +4,31 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims at
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] — 2026-11-01 — known problems fixed, honest UI, Settings window
+
+### Fixed
+- Check ("Jetzt prüfen") and a manual run could disagree about whether work exists:
+  both paths now share `BackupDiscovery.newestUnprocessed`; a regression test asserts
+  they agree (recorded → nothing-new; newer backup → both find it). The UI still
+  distinguishes "no backup present" from "nothing new".
+- The `LaunchAgentManager` SMAppService test registered a REAL launchd agent (the
+  2026-10-08 ghost-agent incident, repeated during development and cleaned up again).
+  `AgentService` is now an injectable protocol; tests use a recording fake and
+  unregister in teardown, so tests can never touch the real launchd domain again.
+- Missing localization key `error.enumerationFailed` (both languages).
+
+### Changed
+- The action is renamed "Archive Existing Backup" (de: "Bestehendes Backup archivieren")
+  — the app archives what Finder last produced, it cannot back up the phone. The source
+  backup's age is shown beside the action, and past 24 h a stale-source hint appears
+  (never a block) and is recorded as a warning on `LastRun`.
+- "An archive already exists" is now a replace/cancel choice instead of a red error —
+  wires the dormant `duplicate.*` strings, closing the CONTRIBUTING known gap and the
+  localization defined-but-unreferenced report.
+- Automation interval picker: 15 min minimum, 30 min default (a run takes 10–20 min).
+- New Settings window (Cmd-,) starting with the destination picker, so the cloud
+  destination is changeable in the app instead of only during first run.
+
 ## [1.0.0] — 2026-10-31
 
 ### Added

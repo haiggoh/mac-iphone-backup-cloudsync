@@ -211,13 +211,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         true
     }
 
-    /// Settings are a documented JSON file rather than a preferences window, so the
-    /// menu item reveals it. Honest about what exists instead of opening an empty pane.
+    private var settingsWindow: NSWindow?
+
+    /// Opens the Settings window (destination picker first — the one choice every user
+    /// makes, previously only reachable during first run or by editing the JSON file).
     @objc func revealSettings() {
         // Menu actions already arrive on the main thread; the hop is what lets the
         // compiler verify the main-actor-isolated call rather than taking it on trust.
         Task { @MainActor [weak self] in
-            self?.automation?.revealSettingsFile()
+            guard let self else { return }
+            if let window = self.settingsWindow {
+                window.makeKeyAndOrderFront(nil)
+                return
+            }
+            self.automation.refresh()
+            if self.automation.discoveredProviders.isEmpty {
+                self.automation.discoverProviders()
+            }
+            let hosting = NSHostingView(rootView: SettingsView(model: self.automation))
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 460, height: 420),
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false)
+            window.title = L("settings.title")
+            window.contentView = hosting
+            window.center()
+            self.settingsWindow = window
+            window.makeKeyAndOrderFront(nil)
         }
     }
 

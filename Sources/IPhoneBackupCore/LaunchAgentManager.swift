@@ -1,6 +1,26 @@
 import Foundation
 import ServiceManagement
 
+/// Backend for SMAppService-style registration, injectable so tests never touch the
+/// real launchd domain (2026-10-08 incident: a test registered
+/// ~/Library/LaunchAgents/test.iphonebackup.plist, which kept firing every 1800 s
+/// after its bundle was deleted).
+@available(macOS 13.0, *)
+public protocol AgentService {
+    func register() throws
+    func unregister() throws
+    var status: SMAppService.Status { get }
+}
+
+@available(macOS 13.0, *)
+private struct RealAgentService: AgentService {
+    private let service: SMAppService
+    init(plistName: String) { service = SMAppService.agent(plistName: plistName) }
+    func register() throws { try service.register() }
+    func unregister() throws { try service.unregister() }
+    var status: SMAppService.Status { service.status }
+}
+
 /// Where the app is installed, and whether that location is fit to automate from.
 public struct InstallationSite: Equatable {
     public let bundleURL: URL
@@ -80,6 +100,11 @@ public struct LaunchAgentManager {
         self.fileManager = fileManager
         self.runProcess = runProcess ?? LaunchAgentManager.execute
     }
+
+    /// Injectable SMAppService backend. Production default is the real service; tests set a
+    /// recording fake, so install/uninstall in tests can never register a real agent.
+    @available(macOS 13.0, *)
+    public var agentServiceFactory: (String) -> any AgentService = { RealAgentService(plistName: $0) }
 
     // MARK: Locations
 
@@ -264,7 +289,7 @@ public struct LaunchAgentManager {
         }
 
         // SMAppService reads the plist from the bundle automatically
-        let service = SMAppService.agent(plistName: "\(configuration.launchAgentLabel).plist")
+        let service = agentServiceFactory("\(configuration.launchAgentLabel).plist")
 
         // Unregister any existing
         do {
@@ -369,7 +394,7 @@ public struct LaunchAgentManager {
 
     @available(macOS 13.0, *)
     private func uninstallWithSMAppService() throws {
-        let service = SMAppService.agent(plistName: "\(configuration.launchAgentLabel).plist")
+        let service = agentServiceFactory("\(configuration.launchAgentLabel).plist")
         do {
             try service.unregister()
         } catch {

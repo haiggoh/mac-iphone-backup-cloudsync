@@ -68,21 +68,39 @@ struct LaunchAgentManagerSMAppServiceTests {
         let plistData = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
         try plistData.write(to: bundle.appendingPathComponent("Contents/Library/LaunchAgents/test.iphonebackup.plist"), options: .atomic)
 
-        let manager = LaunchAgentManager(configuration: configuration)
-        let state = try manager.install(bundleURL: bundle)
+        var manager = LaunchAgentManager(configuration: configuration)
 
-        // On macOS 13+, SMAppService is used; on older macOS, launchctl is used
+        // Tests must never register a real launchd agent (2026-10-08: a test agent in
+        // ~/Library/LaunchAgents kept firing every 1800 s after its bundle was deleted).
+        // Inject a recording fake; teardown unregisters through the same fake, and we
+        // assert the real SMAppService domain stayed untouched.
         if #available(macOS 13.0, *) {
+            final class FakeAgentService: AgentService {
+                var registered = false
+                var registerCalls = 0
+                var unregisterCalls = 0
+                func register() throws { registered = true; registerCalls += 1 }
+                func unregister() throws { registered = false; unregisterCalls += 1 }
+                var status: SMAppService.Status { registered ? .enabled : .notRegistered }
+            }
+            let fake = FakeAgentService()
+            manager.agentServiceFactory = { _ in fake }
+            defer {
+                try? manager.uninstall()
+                #expect(fake.unregisterCalls >= 1,
+                        "teardown must unregister through the service")
+                #expect(!fake.registered)
+            }
+            let state = try manager.install(bundleURL: bundle)
             #expect(state == .installedAndLoaded)
-
-            // Verify with SMAppService - may fail in test environment due to code signing
-            let status = SMAppService.agent(plistName: "test.iphonebackup.plist").status
-            // In test environment, SMAppService requires proper code signing which isn't available
-            // Accept any status as the installation itself succeeded
-            _ = status // just verify it doesn't crash
+            #expect(fake.registerCalls == 1 && fake.registered)
         } else {
-            // On older macOS, launchctl is used
+            // On older macOS, launchctl is used (also a real domain — set the env-free
+            // force-launchctl hook is NOT used here; legacy path is covered by the
+            // automation-location tests' inspectInstallation checks instead)
+            let state = try manager.install(bundleURL: bundle)
             #expect(state == .installedAndLoaded)
+            defer { try? manager.uninstall() }
         }
     }
 
