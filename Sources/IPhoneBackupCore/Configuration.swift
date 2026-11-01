@@ -55,6 +55,9 @@ public struct Configuration {
     /// stopped at the moment `Info.plist` was rewritten. The visible "still working"
     /// signal and the file being watched are the same event.
     public static let defaultMinimumSettleAge: TimeInterval = 900
+    /// Past this age the source backup is stale and the run records a warning (never a
+    /// failure): automation archiving stale data succeeds forever and looks healthy.
+    public static let staleSourceWarningAge: TimeInterval = 24 * 3600
     /// Archives to keep before the app starts warning. It never deletes.
     public static let defaultArchivesToKeep = 3
     public static let defaultPollInterval: TimeInterval = 1800

@@ -17,6 +17,14 @@ Two things this app takes seriously, because the alternative loses data:
 - **It never deletes an archive.** Retention warns you when there are more than three;
   there is no delete path in the code at all.
 
+And one thing it says plainly, because misreported safety is worse than no safety: the
+app **archives the backup Finder last wrote** — it cannot make your iPhone produce a new
+one. The action is labelled "Archive Existing Backup", the age of the source backup is
+shown beside it, and past 24 hours a stale-source hint appears (a hint, never a block;
+automated runs record the staleness as a warning in the run history). If an archive for
+that backup already exists in the destination, you are asked whether to replace it —
+never silently overwritten, never painted as a failure.
+
 ## Requirements
 
 - macOS 13.0 or later is *declared*, but the app has only ever been built and run on
@@ -26,6 +34,14 @@ Two things this app takes seriously, because the alternative loses data:
 - **Full Disk Access**, which you must grant by hand. See below.
 
 ## Install
+
+Via Homebrew (prebuilt app from the release):
+
+```sh
+brew install haiggoh/tap/mac-iphone-backup-cloudsync
+```
+
+or from source:
 
 ```sh
 git clone https://github.com/haiggoh/mac-iphone-backup-cloudsync.git
@@ -143,8 +159,12 @@ the record you are meant to use, and it is why it exists.
 
 ## Settings
 
-`~/Library/Application Support/io.github.haiggoh.iphonebackup/settings.json`, plain
-JSON, `0600`, meant to be readable and editable by hand:
+**Settings → (Cmd-,)** opens a small window starting with the destination picker — the
+cloud provider and root are changeable in the app now, not only during first run. The
+same picker drives first run, so it is familiar the second time.
+
+Underneath it is still `~/Library/Application Support/io.github.haiggoh.iphonebackup/settings.json`,
+plain JSON, `0600`, meant to be readable and editable by hand:
 
 | Key | Meaning |
 |---|---|
@@ -154,7 +174,7 @@ JSON, `0600`, meant to be readable and editable by hand:
 | `archivesToKeep` | How many before it starts warning. It never deletes |
 | `minimumSettleAge` | Seconds of stillness required before archiving; 900 by default |
 | `automationEnabled` | Whether automation should be running |
-| `automationIntervalSeconds` | LaunchAgent poll interval; 300 by default |
+| `automationIntervalSeconds` | LaunchAgent poll interval; 1800 by default (30 min — the UI's shortest selectable interval is 15 min, since a run itself takes 10–20 min) |
 
 Values are clamped on load, so a hand-edited `0` cannot switch off a safety check —
 `minimumSettleAge` has a 60-second floor. A malformed file falls back to defaults and

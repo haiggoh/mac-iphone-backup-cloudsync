@@ -38,6 +38,18 @@ final class BackupViewModel: ObservableObject {
     private var multipleDevices = false
     private var cancelRequested = false
 
+    /// Set when the source backup is older than the staleness threshold — shown beside
+    /// the action so what would be archived is visible BEFORE the click (roadmap: "say
+    /// plainly that this archives an existing backup").
+    @Published var staleWarning: String?
+    /// Set when a manual run found the archive already exists: the UI turns this into
+    /// the duplicate-replace CHOICE (duplicate.* strings) instead of a red error.
+    @Published var pendingDuplicate = false
+    /// Display name of the resolved destination root, for the duplicate dialog.
+    @Published var destinationName: String = ""
+    /// Source backup's completion date, formatted for the duplicate dialog.
+    @Published var duplicateSourceDateText: String = ""
+
     init(configuration: Configuration, logger: AppLogger) {
         self.configuration = configuration
         self.logger = logger
@@ -63,20 +75,32 @@ final class BackupViewModel: ObservableObject {
                 await self.show(problem: problem)
 
             case .success(let result):
-                guard let picked = result.candidates.first else {
-                    // An empty folder and a backup still in progress look identical
-                    // from outside the process, so record which it was.
-                    await self.logDiscovery(
-                        result.rejections.first.map { "no candidate: \($0.logDescription)" }
-                            ?? "no candidate: nothing present")
-                    await self.show(
-                        headline: L("status.noBackupPresent"),
-                        status: result.rejections.isEmpty
-                            ? L("status.emptyOrNoAccess")
-                            // Say WHY rather than implying a permissions problem
-                            // when the real reason is a backup still in progress.
-                            : Presenter.text(for: result.rejections[0].reason),
-                        isError: true)
+                // ONE selection for both paths: the newest candidate the state store has
+                // not recorded yet. AutomaticRunController.check() uses this same function,
+                // so "Jetzt prüfen" and a manual run can no longer disagree about whether
+                // work exists (waypoint iphone-backup-jetzt-pruefen). With an empty store
+                // this is candidates.first, so a fresh install still offers the existing
+                // backup; once recorded, both paths report nothing-new instead.
+                guard let picked = discovery.newestUnprocessed(in: result, store: store) else {
+                    if result.candidates.isEmpty {
+                        // An empty folder and a backup still in progress look identical
+                        // from outside the process, so record which it was.
+                        await self.logDiscovery(
+                            result.rejections.first.map { "no candidate: \($0.logDescription)" }
+                                ?? "no candidate: nothing present")
+                        await self.show(
+                            headline: L("status.noBackupPresent"),
+                            status: result.rejections.isEmpty
+                                ? L("status.emptyOrNoAccess")
+                                : Presenter.text(for: result.rejections[0].reason),
+                            isError: true)
+                    } else {
+                        await self.logDiscovery("no unprocessed candidate")
+                        await self.show(
+                            headline: L("status.nothingNew"),
+                            status: L("run.nothingToDo"),
+                            isError: false)
+                    }
                     return
                 }
 
@@ -131,6 +155,20 @@ final class BackupViewModel: ObservableObject {
         }
         headline = line
         status = L("status.determiningSize")
+
+        // Staleness advisory: past 24 h the archived data is a day old or more, and the
+        // user should connect the iPhone and back up in Finder first. A hint, never a
+        // block — the run itself still works.
+        let age = Date().timeIntervalSince(candidate.completionDate)
+        if age > 24 * 3600 {
+            let ageText = DateComponentsFormatter()
+            ageText.unitsStyle = .short
+            ageText.allowedUnits = [.day, .hour]
+            staleWarning = L("warn.staleSource",
+                             ageText.string(from: age) ?? "\(Int(age / 86400))d")
+        } else {
+            staleWarning = nil
+        }
     }
 
     private func adopt(sourceBytes bytes: Int64) {
@@ -241,6 +279,24 @@ final class BackupViewModel: ObservableObject {
             case .success(let outcome):
                 await self.finish(outcome: outcome, candidate: candidate)
             case .failure(let failure):
+                // An existing archive is the DESIRED state, not a failure: turn it into
+                // the replace choice (duplicate.* strings) instead of red error text.
+                if case .archiveAlreadyExistsWithoutState = failure {
+                    await self.logDiscovery("archive already exists — offering replace")
+                    await MainActor.run {
+                        self.pendingDuplicate = true
+                        self.isRunning = false
+                        let formatter = DateFormatter()
+                        formatter.dateStyle = .medium
+                        formatter.timeStyle = .short
+                        self.duplicateSourceDateText = formatter.string(from: candidate.completionDate)
+                        if case .resolved(let root) = self.locator.resolve(
+                            configuredPath: self.configuration.destinationRootOverride) {
+                            self.destinationName = root.displayName
+                        }
+                    }
+                    return
+                }
                 await self.finish(failure: failure, problem: nil)
             }
         }

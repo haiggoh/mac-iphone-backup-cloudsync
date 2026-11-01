@@ -34,7 +34,9 @@ struct AutomationSection: View {
                 // Disabled while running: changing the interval means reinstalling the
                 // agent, and doing that mid-archive would boot out a live job.
                 Picker(L("automation.interval"), selection: $model.intervalMinutes) {
-                    ForEach([5, 15, 30, 60], id: \.self) { minutes in
+                    // 15 min is the floor: a run itself takes 10-20 min, so polling
+                    // faster than that just re-checks work that cannot be ready yet.
+                    ForEach([15, 30, 60, 120], id: \.self) { minutes in
                         Text(L("automation.everyMinutes", minutes)).tag(minutes)
                     }
                 }

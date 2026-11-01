@@ -9,6 +9,7 @@
 "status.noBackupFolder" = "Kein Backup-Ordner gefunden";
 "status.folderMissing" = "%@ existiert nicht.";
 "status.noBackupPresent" = "Kein iPhone-Backup vorhanden";
+"status.nothingNew" = "Nichts Neues — das neueste Backup ist bereits archiviert.";
 "status.emptyOrNoAccess" = "Ordner ist leer, oder der App fehlt „Festplattenvollzugriff“ (Systemeinstellungen › Datenschutz & Sicherheit).";
 "status.determiningSize" = "Ermittle Größe …";
 "status.readyToArchive" = "%@ — bereit zum Archivieren.";
@@ -25,12 +26,14 @@
 "error.targetFolderFailed" = "Zielordner konnte nicht erstellt werden: %@";
 "error.insufficientSpace" = "Zu wenig freier Speicher: %@ frei, benötigt werden ca. %@.";
 "error.archiveToolFailed" = "ditto ist mit Code %lld fehlgeschlagen.";
+"error.enumerationFailed" = "Backup-Ordner konnte nicht gelesen werden (%d: %@).";
 "error.archiveTooSmall" = "Archiv ist unplausibel klein (%lld Bytes) — Vorgang verworfen.";
 "error.moveFailed" = "Verschieben fehlgeschlagen: %@";
 "error.stagedArchiveKept" = "Das fertige Archiv liegt noch unter %@";
 
 /* Buttons */
-"button.start" = "Sicherung starten";
+"button.start" = "Bestehendes Backup archivieren";
+"warn.staleSource" = "Quell-Backup ist %@ alt — iPhone verbinden und zuerst in Finder sichern.";
 "button.running" = "Läuft …";
 "button.cancel" = "Abbrechen";
 "button.revealInFinder" = "Im Finder zeigen";
@@ -73,6 +76,9 @@
 /* Menüleiste */
 "menu.about" = "Über %@";
 "menu.settings" = "Einstellungen…";
+"settings.title" = "Einstellungen";
+"settings.destination" = "Ziel (Cloud-Ordner)";
+"settings.save" = "Sichern";
 "menu.hide" = "%@ ausblenden";
 "menu.hideOthers" = "Andere ausblenden";
 "menu.showAll" = "Alle anzeigen";

@@ -1,18 +1,24 @@
 import Foundation
 import Testing
-import ServiceManagement
 @testable import IPhoneBackupCore
 
-@Suite("LaunchAgentManager SMAppService")
-struct LaunchAgentManagerSMAppServiceTests {
-    let configuration: Configuration
+/// Test-safety contract for LaunchAgentManager: install/uninstall must go through the
+/// injected `runProcess` and the injected home directory only, so a test can never
+/// register a real launchd agent or write into the real ~/Library/LaunchAgents.
+/// (2026-10-08 incident: a test left test.iphonebackup.plist there, firing every
+/// 1800 s for days after its bundle was deleted.)
+@Suite("LaunchAgentManager test safety")
+struct LaunchAgentManagerTestSafetyTests {
     let tempDir: URL
+    let fakeHome: URL
+    let configuration: Configuration
 
     init() throws {
         tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("SMAppServiceTest-\(UUID().uuidString)")
+            .appendingPathComponent("LaunchAgentSafetyTest-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-
+        fakeHome = tempDir.appendingPathComponent("home")
+        try FileManager.default.createDirectory(at: fakeHome, withIntermediateDirectories: true)
         configuration = Configuration(
             bundleIdentifier: "test.iphonebackup",
             backupRoot: tempDir.appendingPathComponent("backup"),
@@ -22,82 +28,65 @@ struct LaunchAgentManagerSMAppServiceTests {
         )
     }
 
-    @Test("SMAppService installs agent from bundle plist")
-    func installFromBundle() throws {
-        // Create a test bundle structure
-        let bundle = tempDir.appendingPathComponent("TestApp.app")
+    /// A fake bundle in the fake home's Applications, suitable per inspectInstallation.
+    private func makeSuitableBundle() throws -> URL {
+        let app = fakeHome.appendingPathComponent("Applications/TestApp.app")
         try FileManager.default.createDirectory(
-            at: bundle.appendingPathComponent("Contents/MacOS"),
-            withIntermediateDirectories: true
-        )
-        try FileManager.default.createDirectory(
-            at: bundle.appendingPathComponent("Contents/Library/LaunchAgents"),
-            withIntermediateDirectories: true
-        )
-
-        // Write executable stub
-        let executable = bundle.appendingPathComponent("Contents/MacOS/TestApp")
-        try "#!/bin/sh\necho test".write(to: executable, atomically: true, encoding: .utf8)
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: executable.path)
-
-        // Write Info.plist
-        let infoPlist = """
+            at: app.appendingPathComponent("Contents/MacOS"), withIntermediateDirectories: true)
+        let exe = app.appendingPathComponent("Contents/MacOS/TestApp")
+        try "#!/bin/sh\necho test".write(to: exe, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: exe.path)
+        let plist = """
         <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>CFBundleExecutable</key>
-            <string>TestApp</string>
-            <key>CFBundleIdentifier</key>
-            <string>test.iphonebackup</string>
-        </dict>
-        </plist>
+        <plist version="1.0"><dict>
+            <key>CFBundleExecutable</key><string>TestApp</string>
+            <key>CFBundleIdentifier</key><string>test.iphonebackup</string>
+        </dict></plist>
         """
-        try infoPlist.write(to: bundle.appendingPathComponent("Contents/Info.plist"), atomically: true, encoding: .utf8)
+        try plist.write(to: app.appendingPathComponent("Contents/Info.plist"),
+                        atomically: true, encoding: .utf8)
+        return app
+    }
 
-        // Write LaunchAgent plist to bundle
-        let plist = [
-            "Label": "test.iphonebackup",
-            "ProgramArguments": [executable.path, "--automatic"],
-            "RunAtLoad": true,
-            "StartInterval": 300,
-            "ProcessType": "Background",
-            "LowPriorityIO": true,
-            "Nice": 5
-        ] as [String: Any]
-        let plistData = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
-        try plistData.write(to: bundle.appendingPathComponent("Contents/Library/LaunchAgents/test.iphonebackup.plist"), options: .atomic)
-
-        let manager = LaunchAgentManager(configuration: configuration)
-        let state = try manager.install(bundleURL: bundle)
-
-        // On macOS 13+, SMAppService is used; on older macOS, launchctl is used
-        if #available(macOS 13.0, *) {
-            #expect(state == .installedAndLoaded)
-
-            // Verify with SMAppService - may fail in test environment due to code signing
-            let status = SMAppService.agent(plistName: "test.iphonebackup.plist").status
-            // In test environment, SMAppService requires proper code signing which isn't available
-            // Accept any status as the installation itself succeeded
-            _ = status // just verify it doesn't crash
-        } else {
-            // On older macOS, launchctl is used
-            #expect(state == .installedAndLoaded)
+    @Test("install/uninstall go only through the injected runner and fake home")
+    func installUninstallStayInTestDomain() throws {
+        let bundle = try makeSuitableBundle()
+        var commands: [[String]] = []
+        let fakeRun: (URL, [String]) -> (exitCode: Int32, output: String) = { tool, args in
+            commands.append([tool.lastPathComponent] + args)
+            // plutil -lint, launchctl bootstrap/bootout succeed; "print" reports the
+            // job loaded (install's verification); "list" shows exactly one job.
+            if args.first == "list" {
+                return (0, "123\t0\ttest.iphonebackup")
+            }
+            return (0, "")
         }
+        let manager = LaunchAgentManager(
+            configuration: configuration,
+            runProcess: fakeRun,
+            homeDirectory: fakeHome)
+
+        let state = try manager.install(bundleURL: bundle)
+        #expect(state == .installedAndLoaded)
+        #expect(commands.contains { $0.contains("bootstrap") })
+        // the plist was written under the FAKE home, not the real one
+        let plistInFakeHome = fakeHome
+            .appendingPathComponent("Library/LaunchAgents/test.iphonebackup.plist")
+        #expect(FileManager.default.fileExists(atPath: plistInFakeHome.path))
+
+        try manager.uninstall()
+        #expect(commands.contains { $0.contains("bootout") })
+        #expect(!FileManager.default.fileExists(atPath: plistInFakeHome.path))
+
+        // and the REAL domain was never touched: no plist in the real home (all
+        // launchctl calls went to the fake runner, asserted above)
+        let realPlist = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/LaunchAgents/test.iphonebackup.plist")
+        #expect(!FileManager.default.fileExists(atPath: realPlist.path))
     }
 
-    @Test("Ghost task cleanup in build.sh")
-    func buildShCleansUpGhostTasks() throws {
-        // This test verifies the build.sh logic by checking that
-        // the installed app's --remove-automation is called before rm -rf
-        let projectRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()  // Tests/
-            .deletingLastPathComponent()  // IPhoneBackupCoreTests/
-            .deletingLastPathComponent()  // Tests/
-        let buildShPath = projectRoot.appendingPathComponent("build.sh")
-        let buildSh = try String(contentsOf: buildShPath)
-        #expect(buildSh.contains("--remove-automation"))
-        #expect(buildSh.contains("rm -rf"))
-        #expect(buildSh.range(of: "--remove-automation")!.lowerBound < buildSh.range(of: "rm -rf")!.lowerBound)
-    }
+    // NOTE: the old "ghost task cleanup in build.sh" test was removed with the
+    // 2026-10-31 rework (c087090): build.sh no longer calls --remove-automation,
+    // because installation now resolves to a stable AppSupport location instead of
+    // the build dir, so no ghost agent can be written from a transient path.
 }
