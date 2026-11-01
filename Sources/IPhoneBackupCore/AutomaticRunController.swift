@@ -104,9 +104,22 @@ public final class AutomaticRunController {
     /// Wraps `perform()` so every exit path leaves a durable record, including the
     /// early ones. A `defer` rather than a call at each `return`, because the whole
     /// point is that no path can forget.
+    /// Age of the candidate the current run selected; 0 when nothing was selected.
+    private var selectedCandidateAge: TimeInterval = 0
+
     public func run() async -> AutomaticRunResult {
         var outcome: AutomaticRunResult = .nothingToDo
         defer {
+            // Staleness rides on LastRun so the app can surface it later: archiving a
+            // day-old backup "succeeds" forever and looks healthy, which is exactly the
+            // failure mode a backup tool must not have. Warning only, never a failure.
+            var warning: String?
+            if outcome.isSuccess && selectedCandidateAge > Configuration.staleSourceWarningAge {
+                let ageFormatter = DateComponentsFormatter()
+                ageFormatter.unitsStyle = .short
+                ageFormatter.allowedUnits = [.day, .hour]
+                warning = ageFormatter.string(from: selectedCandidateAge)
+            }
             do {
                 try store.recordRun(
                     // Both: the code is what the UI shows, the description is what a
@@ -115,6 +128,7 @@ public final class AutomaticRunController {
                     code: outcome.code,
                     wasSuccess: outcome.isSuccess,
                     wasAutomatic: true,
+                    warning: warning,
                     now: now())
             } catch {
                 // Best-effort: failing to record the run must not change what the run
@@ -163,6 +177,7 @@ public final class AutomaticRunController {
             return .nothingToDo
         }
         logger.log(.discovery).notice("selected \(candidate.logDescription, privacy: .public)")
+        selectedCandidateAge = now().timeIntervalSince(candidate.completionDate)
 
         // MARK: Is it actually finished?
 

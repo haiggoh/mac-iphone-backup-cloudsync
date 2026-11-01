@@ -25,7 +25,7 @@ final class AutomationViewModel: ObservableObject {
     // MARK: Automation
 
     @Published var automationState: LaunchAgentState = .notInstalled
-    @Published var intervalMinutes: Int = 5
+    @Published var intervalMinutes: Int = 30
     @Published var lastRunDescription: String = ""
     /// Whether the last outcome is one the user has to do something about.
     ///
@@ -63,6 +63,16 @@ final class AutomationViewModel: ObservableObject {
 
     // MARK: Loading
 
+    /// Persist the destination choice from the Settings window (first-run confirm does
+    /// more: it also clears the first-run flag).
+    func saveDestination() {
+        _ = try? settings.update {
+            $0.cloudProvider = selectedProvider
+            $0.cloudRootPath = selectedRootPath
+        }
+        refresh()
+    }
+
     func refresh() {
         let current = settings.load()
         isFirstRun = current.needsFirstRunSetup
@@ -82,7 +92,7 @@ final class AutomationViewModel: ObservableObject {
         loadHistory()
     }
 
-    private func discoverProviders() {
+    func discoverProviders() {
         var found: [DiscoveredProvider] = []
         for provider in CloudProvider.discoverable {
             for root in CloudRootLocator(providers: [provider]).discover() {

@@ -85,25 +85,44 @@ public struct LastRun: Codable, Equatable {
     /// three days" means very different things in each case.
     public let wasAutomatic: Bool
 
+    /// Non-nil when the run succeeded but carries a warning the user should see (e.g. the
+    /// source backup was stale). Never a failure reason — warnings never fail a run.
+    /// Optional because older records predate it.
+    public let warning: String?
+
     public init(
         at: Date,
         summary: String,
         code: String? = nil,
         wasSuccess: Bool,
-        wasAutomatic: Bool
+        wasAutomatic: Bool,
+        warning: String? = nil
     ) {
         self.at = at
         self.summary = summary
         self.code = code
         self.wasSuccess = wasSuccess
         self.wasAutomatic = wasAutomatic
+        self.warning = warning
+    }
+
+    // Custom decode so records written before `warning` existed still load.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        at = try container.decode(Date.self, forKey: .at)
+        summary = try container.decode(String.self, forKey: .summary)
+        code = try container.decodeIfPresent(String.self, forKey: .code)
+        wasSuccess = try container.decode(Bool.self, forKey: .wasSuccess)
+        wasAutomatic = try container.decode(Bool.self, forKey: .wasAutomatic)
+        warning = try container.decodeIfPresent(String.self, forKey: .warning)
     }
 }
 
 public struct ProcessedState: Codable, Equatable {
-    /// 3 adds `LastRun.code`. As with every bump so far this only *adds* an optional
-    /// field, so an older file still decodes and `load()` simply adopts the new number.
-    public static let currentVersion = 3
+    /// 3 adds `LastRun.code`; 4 adds `LastRun.warning` (staleness hint, optional).
+    /// As with every bump so far this only *adds* an optional field, so an older file
+    /// still decodes and `load()` simply adopts the new number.
+    public static let currentVersion = 4
 
     public var version: Int
     public var records: [ProcessedArchive]
@@ -267,6 +286,7 @@ public struct BackupStateStore {
         code: String? = nil,
         wasSuccess: Bool,
         wasAutomatic: Bool,
+        warning: String? = nil,
         now: Date = Date()
     ) throws {
         var state = load()
@@ -275,7 +295,8 @@ public struct BackupStateStore {
             summary: summary,
             code: code,
             wasSuccess: wasSuccess,
-            wasAutomatic: wasAutomatic)
+            wasAutomatic: wasAutomatic,
+            warning: warning)
         try save(state)
     }
 

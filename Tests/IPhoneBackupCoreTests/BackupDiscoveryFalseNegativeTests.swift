@@ -53,6 +53,52 @@ final class BackupDiscoveryFalseNegativeTests: TemporaryDirectoryTestCase {
 
     // MARK: - Tests
 
+    /// Regression for waypoint iphone-backup-jetzt-pruefen: the manual UI and the
+    /// automatic check must share ONE selection (BackupDiscovery.newestUnprocessed), so
+    /// they can never disagree about whether work exists.
+    func testCheckAndManualSelectionAgree() throws {
+        let config = configuration()
+        let validator = BackupCompletionValidator()
+        let discovery = BackupDiscovery(configuration: config, validator: validator)
+        let store = BackupStateStore(url: root.appendingPathComponent("state.json"))
+
+        // A backup exists and is NOT yet recorded: both paths must see it.
+        let backupDir = root.appendingPathComponent("backup/device1")
+        try makeValidBackup(at: backupDir)
+        var result = try XCTUnwrap(discovery.discover().get())
+        let picked = try XCTUnwrap(discovery.newestUnprocessed(in: result, store: store))
+        let controller = AutomaticRunController(
+            configuration: config, discovery: discovery, validator: validator,
+            locator: CloudRootLocator(), archiver: BackupArchiver(configuration: config),
+            store: store, lock: ProcessLock(url: config.lockURL), logger: AppLogger(subsystem: "test"))
+        // no cloud root is configured, so check() is .configurationRequired here —
+        // anything but .nothingToDo proves the check saw the unrecorded backup
+        if case .nothingToDo = controller.check() {
+            XCTFail("check must see the unrecorded backup")
+        }
+
+        // Record it as archived: both paths must now agree there is nothing new.
+        try store.recordArchive(candidate: picked, archiveFilename: "a.zip", archiveSize: 1)
+        result = try XCTUnwrap(discovery.discover().get())
+        XCTAssertNil(discovery.newestUnprocessed(in: result, store: store),
+                     "manual selection must respect the recorded identity")
+        if case .nothingToDo = controller.check() {
+            // expected
+        } else {
+            XCTFail("check and manual must agree: nothing to do once recorded")
+        }
+
+        // A NEWER backup in the same directory (incremental backups reuse it) gets a new
+        // identity: both paths must find it — never a silent nothing-to-do.
+        try makeValidBackup(at: backupDir, modificationAge: 60)
+        result = try XCTUnwrap(discovery.discover().get())
+        let newer = try XCTUnwrap(discovery.newestUnprocessed(in: result, store: store))
+        XCTAssertNotEqual(newer.identity, picked.identity)
+        if case .nothingToDo = controller.check() {
+            XCTFail("newer backup must not produce a silent nothing-to-do")
+        }
+    }
+
     func testDetectsRecentBackupAsCandidate() throws {
         // Create a backup that was modified recently (within minimumSettleAge)
         let backupDir = root.appendingPathComponent("backup/recent")

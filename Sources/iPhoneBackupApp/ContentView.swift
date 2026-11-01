@@ -73,6 +73,15 @@ struct ContentView: View {
                 .disabled(model.isRunning || !model.isReady)
             }
 
+            // Staleness hint beside the action: what would be archived is visible before
+            // the click. A hint, never a block.
+            if let warning = model.staleWarning {
+                Text(warning)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             AutomationSection(model: automation)
         }
         .padding(22)
@@ -85,6 +94,21 @@ struct ContentView: View {
         // be attempted, and only ever once.
         .sheet(isPresented: $automation.isFirstRun) {
             FirstRunSheet(model: automation)
+        }
+        // An existing archive is a choice, not a failure: ask replace/cancel via the
+        // dormant duplicate.* strings instead of painting the outcome red.
+        .alert(L("duplicate.title"), isPresented: $model.pendingDuplicate) {
+            Button(L("duplicate.replace")) {
+                model.pendingDuplicate = false
+                model.start(replaceExisting: true)
+            }
+            Button(L("duplicate.cancel"), role: .cancel) {
+                model.pendingDuplicate = false
+            }
+        } message: {
+            Text(L("duplicate.message",
+                   model.duplicateSourceDateText,
+                   model.destinationName))
         }
     }
 }

@@ -26,6 +26,24 @@ final class BackupStateStoreTests: XCTestCase {
                         completionDate: date, dateSource: .statusPlist)
     }
 
+    func testLastRunWarningRoundTripsAndLegacyRecordStillLoads() throws {
+        try store.recordRun(summary: "s", code: "archived", wasSuccess: true,
+                            wasAutomatic: true, warning: "2 days")
+        XCTAssertEqual(store.load().lastRun?.warning, "2 days")
+
+        // A record written before `warning` existed (version 3) must still decode.
+        let legacy = """
+        {"version":3,"records":[],"lastErrorNotice":null,
+         "lastRun":{"at":"2026-01-01T00:00:00Z","summary":"s","code":"archived",
+                    "wasSuccess":true,"wasAutomatic":true}}
+        """
+        let legacyURL = tempDir.appendingPathComponent("legacy.json")
+        try legacy.write(to: legacyURL, atomically: true, encoding: .utf8)
+        let legacyStore = BackupStateStore(url: legacyURL)
+        XCTAssertEqual(legacyStore.load().lastRun?.code, "archived")
+        XCTAssertNil(legacyStore.load().lastRun?.warning)
+    }
+
     func testLoadEmptyState() throws {
         let state = store.load()
         XCTAssertEqual(state.version, ProcessedState.currentVersion)

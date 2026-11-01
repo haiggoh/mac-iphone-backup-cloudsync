@@ -70,21 +70,27 @@ public struct LaunchAgentManager {
     private let configuration: Configuration
     private let fileManager: FileManager
     private let runProcess: (URL, [String]) -> (exitCode: Int32, output: String)
+    /// Test override for the home directory, so `plistURL` and every write land in a
+    /// temp dir and never in the real ~/Library/LaunchAgents (2026-10-08 ghost-agent
+    /// incident: a test plist there kept firing every 1800 s after its bundle died).
+    private let homeDirectory: URL?
 
     public init(
         configuration: Configuration,
         fileManager: FileManager = .default,
-        runProcess: ((URL, [String]) -> (exitCode: Int32, output: String))? = nil
+        runProcess: ((URL, [String]) -> (exitCode: Int32, output: String))? = nil,
+        homeDirectory: URL? = nil
     ) {
         self.configuration = configuration
         self.fileManager = fileManager
         self.runProcess = runProcess ?? LaunchAgentManager.execute
+        self.homeDirectory = homeDirectory
     }
 
     // MARK: Locations
 
     public var plistURL: URL {
-        fileManager.homeDirectoryForCurrentUser
+        (homeDirectory ?? fileManager.homeDirectoryForCurrentUser)
             .appendingPathComponent("Library/LaunchAgents")
             .appendingPathComponent("\(configuration.launchAgentLabel).plist")
     }
