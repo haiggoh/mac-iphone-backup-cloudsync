@@ -45,6 +45,17 @@ struct LaunchAgentManagerTestSafetyTests {
         """
         try plist.write(to: app.appendingPathComponent("Contents/Info.plist"),
                         atomically: true, encoding: .utf8)
+        // install() requires the LaunchAgent plist inside the bundle
+        let agents = app.appendingPathComponent("Contents/Library/LaunchAgents")
+        try FileManager.default.createDirectory(at: agents, withIntermediateDirectories: true)
+        let agentPlist = [
+            "Label": "test.iphonebackup",
+            "ProgramArguments": [exe.path, "--automatic"],
+            "RunAtLoad": true,
+            "StartInterval": 300
+        ] as [String: Any]
+        try PropertyListSerialization.data(fromPropertyList: agentPlist, format: .xml, options: 0)
+            .write(to: agents.appendingPathComponent("test.iphonebackup.plist"), options: .atomic)
         return app
     }
 
