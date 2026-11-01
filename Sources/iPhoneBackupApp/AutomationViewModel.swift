@@ -63,14 +63,26 @@ final class AutomationViewModel: ObservableObject {
 
     // MARK: Loading
 
+    /// Non-nil when the last destination save failed — a backup tool must not swallow
+    /// a failed write to its own settings ("misreported safety is worse than none").
+    @Published var destinationSaveError: String?
+
     /// Persist the destination choice from the Settings window (first-run confirm does
-    /// more: it also clears the first-run flag).
-    func saveDestination() {
-        _ = try? settings.update {
-            $0.cloudProvider = selectedProvider
-            $0.cloudRootPath = selectedRootPath
+    /// more: it also clears the first-run flag). Returns false and records the error
+    /// instead of silently dropping the write.
+    func saveDestination() -> Bool {
+        do {
+            try settings.update {
+                $0.cloudProvider = selectedProvider
+                $0.cloudRootPath = selectedRootPath
+            }
+            destinationSaveError = nil
+            refresh()
+            return true
+        } catch {
+            destinationSaveError = String(describing: error)
+            return false
         }
-        refresh()
     }
 
     func refresh() {

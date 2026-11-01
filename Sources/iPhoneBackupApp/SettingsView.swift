@@ -8,7 +8,9 @@ import SwiftUI
 /// docs/roadmap.md); `automation.mismatch` reporting is untouched.
 struct SettingsView: View {
     @ObservedObject var model: AutomationViewModel
-    @Environment(\.dismiss) private var dismiss
+    /// Closes the host NSWindow — @Environment(\.dismiss) has no presentation context
+    /// inside a hand-constructed NSWindow, so Save would persist but never close.
+    var onClose: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -43,13 +45,21 @@ struct SettingsView: View {
             Button(L("firstRun.customFolder")) { model.chooseCustomFolder() }
                 .font(.caption)
 
+            if let error = model.destinationSaveError {
+                Text(L("settings.saveError", error))
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             Divider()
 
             HStack {
                 Spacer()
                 Button(L("settings.save")) {
-                    model.saveDestination()
-                    dismiss()
+                    if model.saveDestination() {
+                        onClose()
+                    }
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(model.selectedProvider == nil)

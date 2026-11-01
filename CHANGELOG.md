@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.1.1] — 2026-11-01 — review findings fixed (cross-family audit of v1.1.0)
+
+- **Fixed:** Settings window Save now closes the window (dismiss had no presentation
+  context in a hand-built NSWindow) and a failed settings write is surfaced, not
+  swallowed (`try?` on the only new persistence path).
+- **Fixed:** the manual path no longer shows a bare "nothing new" while a newer backup
+  is still settling — it mirrors the check path's `stillSettling` report.
+- Verified, no change needed: the older LaunchAgentManager tests were already safe via
+  `FakeHomeFileManager` (plist writes land in the fake home), and volatile-location
+  rejection is gated by `isSuitable`.
+
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims at
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).

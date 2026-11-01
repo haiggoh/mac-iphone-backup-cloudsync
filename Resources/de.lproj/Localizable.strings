@@ -77,6 +77,7 @@
 "settings.title" = "Einstellungen";
 "settings.destination" = "Ziel (Cloud-Ordner)";
 "settings.save" = "Sichern";
+"settings.saveError" = "Einstellungen konnten nicht gespeichert werden: %@";
 "menu.hide" = "%@ ausblenden";
 "menu.hideOthers" = "Andere ausblenden";
 "menu.showAll" = "Alle anzeigen";

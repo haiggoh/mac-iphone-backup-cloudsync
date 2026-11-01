@@ -97,7 +97,9 @@ struct LaunchAgentManagerTestSafetyTests {
     }
 
     // NOTE: the old "ghost task cleanup in build.sh" test was removed with the
-    // 2026-10-31 rework (c087090): build.sh no longer calls --remove-automation,
-    // because installation now resolves to a stable AppSupport location instead of
-    // the build dir, so no ghost agent can be written from a transient path.
+    // 2026-10-31 rework (c087090): build.sh no longer calls --remove-automation.
+    // The safety conclusion stands for a different reason than the old comment claimed:
+    // volatile locations (build dirs, /tmp) are REJECTED by inspectInstallation, so no
+    // plist is ever written from a transient path — the AppSupport "InstalledApp"
+    // resolution the comment described was specced but never implemented.
 }

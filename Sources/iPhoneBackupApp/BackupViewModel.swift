@@ -94,6 +94,17 @@ final class BackupViewModel: ObservableObject {
                                 ? L("status.emptyOrNoAccess")
                                 : Presenter.text(for: result.rejections[0].reason),
                             isError: true)
+                    } else if let settling = result.rejections.first(where: {
+                        if case .stillSettling = $0.reason { return true }
+                        return false
+                    }) {
+                        // Mirror check(): a still-settling backup is NEW work, just not
+                        // ready — never show a bare "nothing new" in that case.
+                        await self.logDiscovery("still settling: \(settling.logDescription)")
+                        await self.show(
+                            headline: L("status.nothingNew"),
+                            status: Presenter.text(for: settling.reason),
+                            isError: false)
                     } else {
                         await self.logDiscovery("no unprocessed candidate")
                         await self.show(
