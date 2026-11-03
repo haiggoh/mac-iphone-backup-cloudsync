@@ -35,13 +35,16 @@ never silently overwritten, never painted as a failure.
 
 ## Install
 
-Via Homebrew (prebuilt app from the release):
+Via Homebrew (the tap formula builds **from source** — the tag's source archive is
+compiled with the Command Line Tools and ad-hoc-signed locally, so no Gatekeeper
+"unidentified developer" prompt; the prebuilt `.app` also stays on the release page
+for direct download):
 
 ```sh
 brew install haiggoh/tap/mac-iphone-backup-cloudsync
 ```
 
-or from source:
+or build by hand:
 
 ```sh
 git clone https://github.com/haiggoh/mac-iphone-backup-cloudsync.git
